@@ -141,6 +141,42 @@
     </div>
   </div>
 
+  <!-- ============ LONG-RUNNING CHECK MODAL ============ -->
+  <div id="check-overlay" class="overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Quick check-in</h3>
+      </div>
+
+      <div id="check-ask">
+        <p id="check-question" class="check-question"></p>
+        <div class="modal-foot">
+          <button id="check-switched" class="btn ghost">No, I switched a while ago</button>
+          <button id="check-still" class="btn primary">Yes, still going</button>
+        </div>
+      </div>
+
+      <div id="check-fix" class="hidden">
+        <p class="hint">No worries — rough guesses are fine. The point isn't exact timings, it's knowing roughly where your time went so you can spend it wisely. Don't get distracted chasing accuracy.</p>
+        <label for="fix-name">What have you been doing instead?</label>
+        <input type="text" id="fix-name" placeholder="e.g. Out with friends" maxlength="80">
+        <label for="fix-label" class="fix-label-row">How would you label it?</label>
+        <select id="fix-label">
+          <option value="necessary">Necessary</option>
+          <option value="normal" selected>Normal</option>
+          <option value="unnecessary">Unnecessary</option>
+          <option value="bad">Bad</option>
+        </select>
+        <label for="fix-time" class="fix-label-row">Roughly when did you switch?</label>
+        <input type="time" id="fix-time">
+        <div class="modal-foot">
+          <button id="fix-cancel" class="btn ghost">Back</button>
+          <button id="fix-save" class="btn primary">Fix it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

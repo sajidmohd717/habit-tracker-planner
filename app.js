@@ -471,6 +471,83 @@ function renderTracker() {
 // live tick while a timer runs (updates bar, entry durations, summary)
 setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
 
+/* ---------- long-running check: "are you still on this?" ---------- */
+
+const CHECK_AFTER_MS = 3 * 3600000; // ask once an activity passes 3 hours
+
+function checkLongRunning() {
+  const r = runningEntry();
+  if (!r) return;
+  const elapsed = Date.now() - r.start;
+  if (elapsed < CHECK_AFTER_MS) return;
+  // don't nag: re-ask only after another full interval since the last answer
+  if (r.lastCheckAck && Date.now() - r.lastCheckAck < CHECK_AFTER_MS) return;
+  if (!document.getElementById("check-overlay").classList.contains("hidden")) return;
+  document.getElementById("check-question").innerHTML =
+    `You've been on <strong></strong> for <strong>${fmtDuration(Math.round(elapsed / 60000))}</strong> — is that right?`;
+  document.getElementById("check-question").querySelector("strong").textContent = r.name;
+  document.getElementById("check-ask").classList.remove("hidden");
+  document.getElementById("check-fix").classList.add("hidden");
+  document.getElementById("check-overlay").classList.remove("hidden");
+}
+
+function closeCheck() {
+  document.getElementById("check-overlay").classList.add("hidden");
+}
+
+document.getElementById("check-still").addEventListener("click", () => {
+  const r = runningEntry();
+  if (r) { r.lastCheckAck = Date.now(); save(); }
+  closeCheck();
+});
+
+document.getElementById("check-switched").addEventListener("click", () => {
+  document.getElementById("check-ask").classList.add("hidden");
+  document.getElementById("check-fix").classList.remove("hidden");
+  const guess = new Date(); // default guess: halfway through the running entry
+  const r = runningEntry();
+  if (r) guess.setTime(r.start + (Date.now() - r.start) / 2);
+  document.getElementById("fix-time").value =
+    `${String(guess.getHours()).padStart(2, "0")}:${String(guess.getMinutes()).padStart(2, "0")}`;
+  document.getElementById("fix-name").value = "";
+  document.getElementById("fix-name").focus();
+});
+
+document.getElementById("fix-cancel").addEventListener("click", () => {
+  document.getElementById("check-fix").classList.add("hidden");
+  document.getElementById("check-ask").classList.remove("hidden");
+});
+
+document.getElementById("fix-save").addEventListener("click", () => {
+  const r = runningEntry();
+  if (!r) { closeCheck(); return; }
+  const name = document.getElementById("fix-name").value.trim();
+  if (!name) { alert("What have you been doing? A rough answer is fine."); return; }
+  const label = document.getElementById("fix-label").value;
+  const [hh, mm] = document.getElementById("fix-time").value.split(":").map(Number);
+  // interpret the time as the most recent occurrence of HH:MM
+  let switchAt = new Date();
+  switchAt.setHours(hh, mm, 0, 0);
+  if (switchAt.getTime() > Date.now()) switchAt.setDate(switchAt.getDate() - 1);
+  let ts = switchAt.getTime();
+  if (ts <= r.start) ts = r.start + 60000; // keep at least a minute on the old entry
+  r.end = ts;
+  state.entries.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name, label,
+    start: ts,
+    end: null,
+  });
+  save();
+  renderTracker();
+  closeCheck();
+});
+
+// run the check when the app opens, regains focus, or becomes visible again
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkLongRunning(); });
+window.addEventListener("focus", checkLongRunning);
+setInterval(checkLongRunning, 60000); // and once a minute while the app stays open
+
 /* ============================================================
    TASK WIZARD (multi-step modal)
    ============================================================ */
@@ -638,3 +715,4 @@ reconcileHabits();
 renderHabits();
 renderTimeline();
 renderTracker();
+checkLongRunning();

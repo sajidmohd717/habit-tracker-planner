@@ -185,6 +185,13 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .note-editor .editor-btns { display: flex; gap: 8px; justify-content: flex-end; }
 .note-actions { margin-top: 6px; }
 .note-actions .btn, .add-note-btn { font-size: 0.8rem; padding: 4px 10px; }
+
+/* ===== Long-running check modal ===== */
+.check-question { font-size: 1rem; line-height: 1.5; }
+.check-question strong { color: var(--primary-dark); }
+#check-fix label { display: block; font-weight: 600; margin-bottom: 6px; }
+#check-fix .fix-label-row { margin-top: 12px; }
+#check-fix input[type="text"], #check-fix input[type="time"], #check-fix select { width: 100%; }
 .done-today { color: var(--success); font-weight: 600; font-size: 0.9rem; }
 
 /* ===== Planner ===== */
