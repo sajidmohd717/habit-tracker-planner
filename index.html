@@ -8,10 +8,13 @@
 </head>
 <body>
   <header class="app-header">
-    <div id="auth-area" class="auth-area">
-      <span id="user-info" class="user-info hidden"></span>
-      <button id="sign-in-btn" class="btn auth-btn">Sign in with Google</button>
-      <button id="sign-out-btn" class="btn auth-btn hidden">Sign out</button>
+    <div class="header-bar">
+      <div id="auth-area" class="auth-area">
+        <span id="user-info" class="user-info hidden"></span>
+        <button id="sign-in-btn" class="btn auth-btn">Sign in with Google</button>
+        <button id="sign-out-btn" class="btn auth-btn hidden">Sign out</button>
+      </div>
+      <button id="settings-btn" class="btn auth-btn" title="Settings">⚙</button>
     </div>
     <h1>Habitloom</h1>
     <p class="tagline">Weave a better you — habits, plans, and honest time, 1% a day.</p>
@@ -142,6 +145,22 @@
       <div class="modal-foot">
         <button id="wizard-back" class="btn ghost hidden">Back</button>
         <button id="wizard-next" class="btn primary">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS MODAL ============ -->
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>⚙ Settings</h3>
+        <button id="settings-close" class="btn ghost">✕</button>
+      </div>
+
+      <div class="settings-section danger-zone">
+        <h4>Start fresh</h4>
+        <p class="hint">Erase all habits, streaks, plans, and tracked time — everywhere. The app goes back to how a brand-new user sees it. If you're signed in, your cloud copy is wiped too, so it won't come back on other devices. <strong>This cannot be undone.</strong></p>
+        <button id="reset-account-btn" class="btn danger-btn">Reset my account</button>
       </div>
     </div>
   </div>

@@ -746,6 +746,35 @@ document.getElementById("running-bar-switch").addEventListener("click", () => {
 document.getElementById("today-date").textContent =
   new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
+/* ---------- settings ---------- */
+
+document.getElementById("settings-btn").addEventListener("click", () =>
+  document.getElementById("settings-overlay").classList.remove("hidden"));
+document.getElementById("settings-close").addEventListener("click", () =>
+  document.getElementById("settings-overlay").classList.add("hidden"));
+document.getElementById("settings-overlay").addEventListener("click", e => {
+  if (e.target.id === "settings-overlay") e.target.classList.add("hidden");
+});
+
+document.getElementById("reset-account-btn").addEventListener("click", () => {
+  const answer = prompt(
+    'This erases ALL your habits, streaks, plans, and tracked time — including your cloud copy if signed in. It cannot be undone.\n\nType "reset" to confirm:'
+  );
+  if (answer === null) return;
+  if (answer.trim().toLowerCase() !== "reset") {
+    alert("Not reset — you must type exactly: reset");
+    return;
+  }
+  state = { habits: [], tasksByDate: {}, entries: [] };
+  save(); // also pushes the empty state to the cloud when signed in
+  renderHabits();
+  renderTimeline();
+  renderTracker();
+  document.getElementById("freeze-notice").classList.add("hidden");
+  document.getElementById("settings-overlay").classList.add("hidden");
+  alert("Fresh slate. Day 1 starts now — one small habit. 🌱");
+});
+
 /* ---------- init ---------- */
 reconcileHabits();
 renderHabits();
