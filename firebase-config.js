@@ -6,13 +6,12 @@
 //   2. Add a Web app to it and copy the config object it gives you
 //   3. Replace `null` below with that object
 // Full steps in README.md.
-window.FIREBASE_CONFIG = null;
-// Example:
-// window.FIREBASE_CONFIG = {
-//   apiKey: "AIza....",
-//   authDomain: "your-project.firebaseapp.com",
-//   projectId: "your-project",
-//   storageBucket: "your-project.appspot.com",
-//   messagingSenderId: "1234567890",
-//   appId: "1:1234567890:web:abcdef",
-// };
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCyW9UFnpCfScfqdg7OOd9QjMam1nxuMu4",
+  authDomain: "habitloom-32b6c.firebaseapp.com",
+  projectId: "habitloom-32b6c",
+  storageBucket: "habitloom-32b6c.firebasestorage.app",
+  messagingSenderId: "365824914499",
+  appId: "1:365824914499:web:2879ff959b065c7aa390f6",
+  measurementId: "G-297JPF182Y",
+};
