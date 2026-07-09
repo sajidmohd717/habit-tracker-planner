@@ -107,9 +107,17 @@ async function initSync() {
   });
 }
 
-/* Merge two app states without losing progress on either side. */
+/* Merge two app states without losing progress on either side.
+   Exception: if one side was reset more recently, it wins wholesale —
+   a reset must not be "out-merged" by older data from the cloud. */
 function mergeStates(a, b) {
-  const merged = { habits: [], tasksByDate: {}, entries: [] };
+  const ra = a.resetAt || 0, rb = b.resetAt || 0;
+  if (ra !== rb) {
+    const winner = ra > rb ? a : b;
+    return { habits: [], tasksByDate: {}, entries: [], ...winner };
+  }
+
+  const merged = { habits: [], tasksByDate: {}, entries: [], resetAt: ra };
 
   // habits: union by id; on conflict keep the copy with more progress
   const habitMap = new Map();
@@ -157,3 +165,5 @@ function mergeStates(a, b) {
 
   return merged;
 }
+
+window.__mergeStates = mergeStates; // exposed for testing in the console

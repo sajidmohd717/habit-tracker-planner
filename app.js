@@ -18,6 +18,7 @@ function load() {
   } catch (e) { /* corrupted storage — start fresh */ }
   if (!s) s = { habits: [], tasksByDate: {} };
   if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
+  if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
   return s;
 }
 function save() {
@@ -765,7 +766,7 @@ document.getElementById("reset-account-btn").addEventListener("click", () => {
     alert("Not reset — you must type exactly: reset");
     return;
   }
-  state = { habits: [], tasksByDate: {}, entries: [] };
+  state = { habits: [], tasksByDate: {}, entries: [], resetAt: Date.now() };
   save(); // also pushes the empty state to the cloud when signed in
   renderHabits();
   renderTimeline();
