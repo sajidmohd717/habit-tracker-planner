@@ -299,8 +299,8 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
   animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-.stop-btn { background: var(--danger); color: #fff; font-weight: 600; padding: 7px 14px; }
-.stop-btn:hover { filter: brightness(1.1); }
+.switch-btn { background: rgba(255,255,255,0.18); color: #fff; font-weight: 600; padding: 7px 14px; }
+.switch-btn:hover { background: rgba(255,255,255,0.3); }
 
 .track-form { display: flex; gap: 10px; }
 .track-form input[type="text"] { flex: 1; }

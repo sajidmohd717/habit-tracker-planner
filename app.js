@@ -313,7 +313,7 @@ function runningEntry() {
 }
 
 function startActivity(name, label) {
-  stopRunning(); // one timer at a time — starting a new one stops the old
+  endRunning(); // switching is the only way to end an entry — tracking never stops
   state.entries.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name, label,
@@ -324,13 +324,13 @@ function startActivity(name, label) {
   renderTracker();
 }
 
-function stopRunning() {
+// internal only — no UI stop button exists; called when a new activity starts
+function endRunning() {
   const r = runningEntry();
   if (!r) return;
   r.end = Date.now();
   if (r.end - r.start < 1000) r.end = r.start + 1000; // keep at least 1s
   save();
-  renderTracker();
 }
 
 function deleteEntry(id) {
@@ -339,10 +339,15 @@ function deleteEntry(id) {
   renderTracker();
 }
 
-function entriesToday() {
+function dayStartMs() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
-  return state.entries.filter(e => e.start >= start.getTime());
+  return start.getTime();
+}
+// entries overlapping today (a running entry started yesterday still counts)
+function entriesToday() {
+  const start = dayStartMs();
+  return state.entries.filter(e => (e.end === null ? Date.now() : e.end) > start);
 }
 
 function fmtElapsed(ms) {
@@ -380,6 +385,20 @@ function renderTracker() {
     if (running && running.name.toLowerCase() === e.name.toLowerCase() && running.label === e.label) continue;
     recents.push(e);
   }
+  // starter suggestions for bunching mundane stretches, until the user has their own recents
+  const starters = [
+    { name: "Down time", label: "normal" },
+    { name: "Morning routine", label: "necessary" },
+    { name: "Sleep", label: "necessary" },
+  ];
+  for (const s of starters) {
+    if (recents.length >= 6) break;
+    const key = s.name.toLowerCase() + "|" + s.label;
+    if (seen.has(key)) continue;
+    if (running && running.name.toLowerCase() === s.name.toLowerCase() && running.label === s.label) continue;
+    seen.add(key);
+    recents.push(s);
+  }
   for (const e of recents) {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -406,9 +425,7 @@ function renderTracker() {
       <span class="entry-name"></span>
       <span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span>
       <span class="entry-dur">${fmtElapsed(dur)}</span>
-      ${isRunning
-        ? `<button class="btn stop-btn" data-stop>■ Stop</button>`
-        : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}`;
+      ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}`;
     const nameEl = row.querySelector(".entry-name");
     nameEl.textContent = e.name + " ";
     if (isRunning) nameEl.innerHTML += `<span class="entry-running">● tracking</span>`;
@@ -418,8 +435,10 @@ function renderTracker() {
   // summary: total per label
   const totals = {};
   let grand = 0;
+  const dayStart = dayStartMs();
   for (const e of today) {
-    const dur = (e.end === null ? Date.now() : e.end) - e.start;
+    // only count the portion that falls within today
+    const dur = (e.end === null ? Date.now() : e.end) - Math.max(e.start, dayStart);
     totals[e.label] = (totals[e.label] || 0) + dur;
     grand += dur;
   }
@@ -601,12 +620,15 @@ document.getElementById("recent-chips").addEventListener("click", e => {
 });
 
 document.getElementById("entry-list").addEventListener("click", e => {
-  if (e.target.closest("[data-stop]")) stopRunning();
   const del = e.target.closest("[data-del-entry]");
   if (del) deleteEntry(del.dataset.delEntry);
 });
 
-document.getElementById("running-bar-stop").addEventListener("click", stopRunning);
+// no stop button — switching activities is the only way to end tracking
+document.getElementById("running-bar-switch").addEventListener("click", () => {
+  document.querySelector('[data-tab="tracker"]').click();
+  document.getElementById("track-name").focus();
+});
 
 document.getElementById("today-date").textContent =
   new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });

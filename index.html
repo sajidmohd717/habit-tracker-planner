@@ -22,7 +22,7 @@
     <span class="pulse-dot"></span>
     <span id="running-bar-name"></span>
     <span id="running-bar-elapsed" class="running-elapsed">0:00</span>
-    <button id="running-bar-stop" class="btn stop-btn">■ Stop</button>
+    <button id="running-bar-switch" class="btn switch-btn">⇄ Switch</button>
   </div>
 
   <!-- ============ HABITS TAB ============ -->
@@ -65,6 +65,7 @@
   <main id="tab-tracker" class="tab-panel">
     <section class="card">
       <h2>Track an activity</h2>
+      <p class="hint">Tracking never stops — to end an activity, start the next one. Even downtime counts: that's the point.</p>
       <form id="track-form" class="track-form">
         <input type="text" id="track-name" placeholder="e.g. Watching YouTube" maxlength="80" required>
         <select id="track-label">
