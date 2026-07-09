@@ -168,7 +168,9 @@ function editHabitNote(id) {
   saveBtn.className = "btn primary";
   saveBtn.textContent = "Save note";
   saveBtn.onclick = () => {
-    h.note = ta.value.trim();
+    const newNote = ta.value.trim();
+    if (newNote !== h.note) delete h.showNoteOnCheckin; // fresh reasons re-enable the check-in gate
+    h.note = newNote;
     save();
     renderHabits();
   };
