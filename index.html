@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1% Better — Habit Tracker &amp; Planner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>1% Better</h1>
+    <p class="tagline">Build habits. Plan your day. Improve 1% every day.</p>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="habits">Habits</button>
+      <button class="tab-btn" data-tab="planner">Planner</button>
+    </nav>
+  </header>
+
+  <!-- ============ HABITS TAB ============ -->
+  <main id="tab-habits" class="tab-panel active">
+    <div id="stack-nudge" class="nudge hidden">
+      🎉 All your habits have a 7+ day streak. You're consistent — ready to stack a new habit?
+    </div>
+
+    <div id="freeze-notice" class="notice hidden"></div>
+
+    <section class="card">
+      <h2>Add a habit</h2>
+      <form id="habit-form" class="row-form">
+        <input type="text" id="habit-name" placeholder="e.g. Drink 2 glasses of water when I wake up" maxlength="80" required>
+        <button type="submit" class="btn primary">Add habit</button>
+      </form>
+    </section>
+
+    <section id="habit-list" class="habit-list"></section>
+    <p id="habits-empty" class="empty-msg">No habits yet. Start with one small habit — that's the whole idea.</p>
+  </main>
+
+  <!-- ============ PLANNER TAB ============ -->
+  <main id="tab-planner" class="tab-panel">
+    <section class="card">
+      <div class="planner-head">
+        <h2>Today's plan <span id="today-date" class="muted"></span></h2>
+        <button id="open-task-wizard" class="btn primary">+ Add task</button>
+      </div>
+    </section>
+
+    <section class="card timeline-card">
+      <div id="timeline" class="timeline"></div>
+      <p id="tasks-empty" class="empty-msg">Nothing planned yet. Add a task and give it a time slot.</p>
+    </section>
+  </main>
+
+  <!-- ============ TASK WIZARD MODAL ============ -->
+  <div id="wizard-overlay" class="overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="wizard-title">New task</h3>
+        <button id="wizard-close" class="btn ghost">✕</button>
+      </div>
+
+      <div class="wizard-step" data-step="1">
+        <label for="task-name">What do you want to do?</label>
+        <input type="text" id="task-name" placeholder="e.g. Gym" maxlength="80">
+      </div>
+
+      <div class="wizard-step hidden" data-step="2">
+        <label for="task-duration">How long will it take (estimated)?</label>
+        <div class="duration-row">
+          <input type="number" id="task-duration-h" min="0" max="23" value="1" aria-label="hours"> <span>h</span>
+          <input type="number" id="task-duration-m" min="0" max="59" step="5" value="0" aria-label="minutes"> <span>min</span>
+        </div>
+      </div>
+
+      <div class="wizard-step hidden" data-step="3">
+        <p class="hint">Anything you're forgetting? Travel, prep, cleanup, shower… these take time too.</p>
+        <label class="check-row"><input type="checkbox" id="need-before"> Time needed <strong>before</strong></label>
+        <div id="before-fields" class="sub-fields hidden">
+          <input type="text" id="before-label" placeholder="e.g. Travel to gym" maxlength="60">
+          <div class="duration-row"><input type="number" id="before-min" min="5" max="240" step="5" value="20"> <span>min</span></div>
+        </div>
+        <label class="check-row"><input type="checkbox" id="need-after"> Time needed <strong>after</strong></label>
+        <div id="after-fields" class="sub-fields hidden">
+          <input type="text" id="after-label" placeholder="e.g. Travel back home" maxlength="60">
+          <div class="duration-row"><input type="number" id="after-min" min="5" max="240" step="5" value="20"> <span>min</span></div>
+        </div>
+      </div>
+
+      <div class="wizard-step hidden" data-step="4">
+        <label for="task-start">When would you like to start?</label>
+        <p class="hint" id="start-hint"></p>
+        <input type="time" id="task-start" value="17:00">
+      </div>
+
+      <div class="modal-foot">
+        <button id="wizard-back" class="btn ghost hidden">Back</button>
+        <button id="wizard-next" class="btn primary">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
