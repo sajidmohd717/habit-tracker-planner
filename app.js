@@ -87,10 +87,11 @@ function addDays(key, n) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function addHabit(name) {
+function addHabit(name, note) {
   state.habits.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name,
+    note: note || "",
     createdAt: todayKey(),
     streak: 0,
     bestStreak: 0,
@@ -127,6 +128,39 @@ function deleteHabit(id) {
   renderHabits();
 }
 
+function editHabitNote(id) {
+  const h = state.habits.find(x => x.id === id);
+  if (!h) return;
+  const card = document.querySelector(`.habit-card[data-habit="${id}"]`);
+  const noteArea = card.querySelector(".habit-note-area");
+  noteArea.innerHTML = "";
+  const editor = document.createElement("div");
+  editor.className = "note-editor";
+  const ta = document.createElement("textarea");
+  ta.rows = 4;
+  ta.maxLength = 1000;
+  ta.placeholder = "Why do you want this habit? The reasons you'll need on hard days.";
+  ta.value = h.note || "";
+  const btns = document.createElement("div");
+  btns.className = "editor-btns";
+  const cancel = document.createElement("button");
+  cancel.className = "btn ghost";
+  cancel.textContent = "Cancel";
+  cancel.onclick = () => renderHabits();
+  const saveBtn = document.createElement("button");
+  saveBtn.className = "btn primary";
+  saveBtn.textContent = "Save note";
+  saveBtn.onclick = () => {
+    h.note = ta.value.trim();
+    save();
+    renderHabits();
+  };
+  btns.append(cancel, saveBtn);
+  editor.append(ta, btns);
+  noteArea.appendChild(editor);
+  ta.focus();
+}
+
 function renderHabits() {
   const list = document.getElementById("habit-list");
   const empty = document.getElementById("habits-empty");
@@ -138,6 +172,7 @@ function renderHabits() {
     const doneToday = h.lastCheckin === today;
     const card = document.createElement("div");
     card.className = "habit-card";
+    card.dataset.habit = h.id;
     card.innerHTML = `
       <div class="habit-info">
         <div class="habit-name"></div>
@@ -146,6 +181,7 @@ function renderHabits() {
           <span>🏆 Best: ${h.bestStreak}</span>
           <span class="freeze-badge">🧊 ${h.freezes} freeze${h.freezes === 1 ? "" : "s"}</span>
         </div>
+        <div class="habit-note-area"></div>
       </div>
       <div class="habit-actions">
         ${doneToday
@@ -154,6 +190,25 @@ function renderHabits() {
         <button class="btn ghost" data-delete="${h.id}" title="Delete habit">🗑</button>
       </div>`;
     card.querySelector(".habit-name").textContent = h.name;
+
+    const noteArea = card.querySelector(".habit-note-area");
+    if (h.note) {
+      const details = document.createElement("details");
+      details.className = "habit-note";
+      const summary = document.createElement("summary");
+      summary.textContent = "📝 Why I'm doing this";
+      const text = document.createElement("div");
+      text.className = "note-text";
+      text.textContent = h.note;
+      const actions = document.createElement("div");
+      actions.className = "note-actions";
+      actions.innerHTML = `<button class="btn ghost" data-edit-note="${h.id}">✎ Edit note</button>`;
+      details.append(summary, text, actions);
+      noteArea.appendChild(details);
+    } else {
+      noteArea.innerHTML = `<div class="note-actions"><button class="btn ghost add-note-btn" data-edit-note="${h.id}">＋ Add a "why" note</button></div>`;
+    }
+
     list.appendChild(card);
   }
 
@@ -493,17 +548,24 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
 document.getElementById("habit-form").addEventListener("submit", e => {
   e.preventDefault();
   const input = document.getElementById("habit-name");
+  const noteInput = document.getElementById("habit-note");
   const name = input.value.trim();
   if (!name) return;
-  addHabit(name);
+  addHabit(name, noteInput.value.trim());
   input.value = "";
+  noteInput.value = "";
 });
 
 document.getElementById("habit-list").addEventListener("click", e => {
   const checkin = e.target.closest("[data-checkin]");
   const del = e.target.closest("[data-delete]");
+  const editNote = e.target.closest("[data-edit-note]");
   if (checkin) checkinHabit(checkin.dataset.checkin);
   if (del) deleteHabit(del.dataset.delete);
+  if (editNote) {
+    e.preventDefault(); // keep the <details> from toggling
+    editHabitNote(editNote.dataset.editNote);
+  }
 });
 
 document.getElementById("timeline").addEventListener("click", e => {

@@ -71,6 +71,19 @@ body {
 
 .row-form { display: flex; gap: 10px; }
 .row-form input { flex: 1; }
+.col-form { display: flex; flex-direction: column; gap: 10px; }
+.col-form .btn { align-self: flex-end; }
+
+textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fafbff;
+  resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 
 input[type="text"], input[type="number"], input[type="time"] {
   border: 1px solid var(--border);
@@ -146,6 +159,32 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .streak-flame { color: var(--accent); font-weight: 700; }
 .freeze-badge { color: var(--freeze); font-weight: 600; }
 .habit-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.habit-note { margin-top: 8px; font-size: 0.88rem; }
+.habit-note summary {
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 600;
+  list-style: none;
+  user-select: none;
+}
+.habit-note summary::before { content: "▸ "; }
+.habit-note[open] summary::before { content: "▾ "; }
+.note-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  background: #f7f8fd;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  margin-top: 6px;
+  color: #3a4258;
+}
+.note-editor { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.note-editor textarea { width: 100%; }
+.note-editor .editor-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.note-actions { margin-top: 6px; }
+.note-actions .btn, .add-note-btn { font-size: 0.8rem; padding: 4px 10px; }
 .done-today { color: var(--success); font-weight: 600; font-size: 0.9rem; }
 
 /* ===== Planner ===== */
