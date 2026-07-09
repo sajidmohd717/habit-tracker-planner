@@ -10,11 +10,14 @@ const PX_PER_HOUR = 56;
 let state = load();
 
 function load() {
+  let s = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) s = JSON.parse(raw);
   } catch (e) { /* corrupted storage — start fresh */ }
-  return { habits: [], tasksByDate: {} };
+  if (!s) s = { habits: [], tasksByDate: {} };
+  if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
+  return s;
 }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -243,6 +246,158 @@ function renderTimeline() {
 }
 
 /* ============================================================
+   TIME TRACKER
+   ============================================================ */
+
+const LABELS = ["necessary", "normal", "unnecessary", "bad"];
+const LABEL_TITLES = { necessary: "Necessary", normal: "Normal", unnecessary: "Unnecessary", bad: "Bad" };
+
+// entry: { id, name, label, start (ms), end (ms|null) }
+function runningEntry() {
+  return state.entries.find(e => e.end === null) || null;
+}
+
+function startActivity(name, label) {
+  stopRunning(); // one timer at a time — starting a new one stops the old
+  state.entries.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name, label,
+    start: Date.now(),
+    end: null,
+  });
+  save();
+  renderTracker();
+}
+
+function stopRunning() {
+  const r = runningEntry();
+  if (!r) return;
+  r.end = Date.now();
+  if (r.end - r.start < 1000) r.end = r.start + 1000; // keep at least 1s
+  save();
+  renderTracker();
+}
+
+function deleteEntry(id) {
+  state.entries = state.entries.filter(e => e.id !== id);
+  save();
+  renderTracker();
+}
+
+function entriesToday() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return state.entries.filter(e => e.start >= start.getTime());
+}
+
+function fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+}
+function fmtClock(ms) {
+  const d = new Date(ms);
+  return fmtTime(d.getHours() * 60 + d.getMinutes());
+}
+
+function renderTracker() {
+  const running = runningEntry();
+
+  // persistent bar (visible on every tab)
+  const bar = document.getElementById("running-bar");
+  bar.classList.toggle("hidden", !running);
+  if (running) {
+    document.getElementById("running-bar-name").textContent = running.name;
+    document.getElementById("running-bar-elapsed").textContent = fmtElapsed(Date.now() - running.start);
+  }
+
+  // recent chips: latest unique name+label combos, running one excluded
+  const chipsBox = document.getElementById("recent-chips");
+  chipsBox.innerHTML = "";
+  const seen = new Set();
+  const recents = [];
+  for (let i = state.entries.length - 1; i >= 0 && recents.length < 6; i--) {
+    const e = state.entries[i];
+    const key = e.name.toLowerCase() + "|" + e.label;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (running && running.name.toLowerCase() === e.name.toLowerCase() && running.label === e.label) continue;
+    recents.push(e);
+  }
+  for (const e of recents) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `chip label-${e.label}`;
+    chip.dataset.restartName = e.name;
+    chip.dataset.restartLabel = e.label;
+    chip.innerHTML = `<span class="label-dot"></span>`;
+    chip.append("▶ " + e.name);
+    chipsBox.appendChild(chip);
+  }
+
+  // today's entries (newest first)
+  const list = document.getElementById("entry-list");
+  const today = entriesToday().slice().sort((a, b) => b.start - a.start);
+  document.getElementById("entries-empty").classList.toggle("hidden", today.length > 0);
+  list.innerHTML = "";
+  for (const e of today) {
+    const isRunning = e.end === null;
+    const dur = (isRunning ? Date.now() : e.end) - e.start;
+    const row = document.createElement("div");
+    row.className = "entry-row";
+    row.innerHTML = `
+      <span class="entry-label-dot label-${e.label}" title="${LABEL_TITLES[e.label]}"></span>
+      <span class="entry-name"></span>
+      <span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span>
+      <span class="entry-dur">${fmtElapsed(dur)}</span>
+      ${isRunning
+        ? `<button class="btn stop-btn" data-stop>■ Stop</button>`
+        : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}`;
+    const nameEl = row.querySelector(".entry-name");
+    nameEl.textContent = e.name + " ";
+    if (isRunning) nameEl.innerHTML += `<span class="entry-running">● tracking</span>`;
+    list.appendChild(row);
+  }
+
+  // summary: total per label
+  const totals = {};
+  let grand = 0;
+  for (const e of today) {
+    const dur = (e.end === null ? Date.now() : e.end) - e.start;
+    totals[e.label] = (totals[e.label] || 0) + dur;
+    grand += dur;
+  }
+  const barEl = document.getElementById("summary-bar");
+  const legend = document.getElementById("summary-legend");
+  document.getElementById("summary-empty").classList.toggle("hidden", grand > 0);
+  barEl.classList.toggle("hidden", grand === 0);
+  barEl.innerHTML = "";
+  legend.innerHTML = "";
+  if (grand > 0) {
+    for (const label of LABELS) {
+      if (!totals[label]) continue;
+      const seg = document.createElement("div");
+      seg.className = `summary-seg label-${label}`;
+      seg.style.flex = String(totals[label] / grand);
+      seg.title = `${LABEL_TITLES[label]}: ${fmtElapsed(totals[label])}`;
+      barEl.appendChild(seg);
+      const item = document.createElement("span");
+      item.className = `legend-item label-${label}`;
+      item.innerHTML = `<span class="label-dot"></span>${LABEL_TITLES[label]}: <strong>${fmtElapsed(totals[label])}</strong> (${Math.round((totals[label] / grand) * 100)}%)`;
+      legend.appendChild(item);
+    }
+    const total = document.createElement("span");
+    total.className = "legend-item";
+    total.innerHTML = `Total tracked: <strong>${fmtElapsed(grand)}</strong>`;
+    legend.appendChild(total);
+  }
+}
+
+// live tick while a timer runs (updates bar, entry durations, summary)
+setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
+
+/* ============================================================
    TASK WIZARD (multi-step modal)
    ============================================================ */
 
@@ -370,6 +525,27 @@ document.getElementById("need-before").addEventListener("change", e =>
 document.getElementById("need-after").addEventListener("change", e =>
   document.getElementById("after-fields").classList.toggle("hidden", !e.target.checked));
 
+document.getElementById("track-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = document.getElementById("track-name").value.trim();
+  if (!name) return;
+  startActivity(name, document.getElementById("track-label").value);
+  document.getElementById("track-name").value = "";
+});
+
+document.getElementById("recent-chips").addEventListener("click", e => {
+  const chip = e.target.closest("[data-restart-name]");
+  if (chip) startActivity(chip.dataset.restartName, chip.dataset.restartLabel);
+});
+
+document.getElementById("entry-list").addEventListener("click", e => {
+  if (e.target.closest("[data-stop]")) stopRunning();
+  const del = e.target.closest("[data-del-entry]");
+  if (del) deleteEntry(del.dataset.delEntry);
+});
+
+document.getElementById("running-bar-stop").addEventListener("click", stopRunning);
+
 document.getElementById("today-date").textContent =
   new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
@@ -377,3 +553,4 @@ document.getElementById("today-date").textContent =
 reconcileHabits();
 renderHabits();
 renderTimeline();
+renderTracker();

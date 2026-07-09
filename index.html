@@ -13,8 +13,17 @@
     <nav class="tabs">
       <button class="tab-btn active" data-tab="habits">Habits</button>
       <button class="tab-btn" data-tab="planner">Planner</button>
+      <button class="tab-btn" data-tab="tracker">Tracker</button>
     </nav>
   </header>
+
+  <!-- persistent running-timer bar, visible on every tab -->
+  <div id="running-bar" class="running-bar hidden">
+    <span class="pulse-dot"></span>
+    <span id="running-bar-name"></span>
+    <span id="running-bar-elapsed" class="running-elapsed">0:00</span>
+    <button id="running-bar-stop" class="btn stop-btn">■ Stop</button>
+  </div>
 
   <!-- ============ HABITS TAB ============ -->
   <main id="tab-habits" class="tab-panel active">
@@ -48,6 +57,37 @@
     <section class="card timeline-card">
       <div id="timeline" class="timeline"></div>
       <p id="tasks-empty" class="empty-msg">Nothing planned yet. Add a task and give it a time slot.</p>
+    </section>
+  </main>
+
+  <!-- ============ TRACKER TAB ============ -->
+  <main id="tab-tracker" class="tab-panel">
+    <section class="card">
+      <h2>Track an activity</h2>
+      <form id="track-form" class="track-form">
+        <input type="text" id="track-name" placeholder="e.g. Watching YouTube" maxlength="80" required>
+        <select id="track-label">
+          <option value="necessary">Necessary</option>
+          <option value="normal" selected>Normal</option>
+          <option value="unnecessary">Unnecessary</option>
+          <option value="bad">Bad</option>
+        </select>
+        <button type="submit" class="btn primary">▶ Start</button>
+      </form>
+      <div id="recent-chips" class="chips"></div>
+    </section>
+
+    <section class="card">
+      <h2>Where your time went today</h2>
+      <div id="summary-bar" class="summary-bar hidden"></div>
+      <div id="summary-legend" class="summary-legend"></div>
+      <p id="summary-empty" class="empty-msg">Nothing tracked yet today. Start an activity and find out where your day goes.</p>
+    </section>
+
+    <section class="card">
+      <h2>Today's entries</h2>
+      <div id="entry-list" class="entry-list"></div>
+      <p id="entries-empty" class="empty-msg">No entries yet.</p>
     </section>
   </main>
 
