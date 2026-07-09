@@ -103,10 +103,27 @@ function addHabit(name, note) {
   renderHabits();
 }
 
+let pendingCheckinId = null;
+
 function checkinHabit(id) {
   const h = state.habits.find(x => x.id === id);
   const today = todayKey();
   if (!h || h.lastCheckin === today) return;
+  // habits with a "why" note show the reasons first (unless the user opted out)
+  if (h.note && h.showNoteOnCheckin !== false) {
+    pendingCheckinId = id;
+    document.getElementById("why-habit-name").textContent = h.name;
+    document.getElementById("why-note-text").textContent = h.note;
+    document.getElementById("why-show-again").checked = true;
+    document.getElementById("why-overlay").classList.remove("hidden");
+    return;
+  }
+  doCheckin(h);
+}
+
+function doCheckin(h) {
+  const today = todayKey();
+  if (h.lastCheckin === today) return;
   h.streak += 1;
   h.bestStreak = Math.max(h.bestStreak, h.streak);
   h.lastCheckin = today;
@@ -702,6 +719,21 @@ document.getElementById("entry-list").addEventListener("click", e => {
 });
 
 // no stop button — switching activities is the only way to end tracking
+document.getElementById("why-continue").addEventListener("click", () => {
+  const h = state.habits.find(x => x.id === pendingCheckinId);
+  if (h) {
+    if (!document.getElementById("why-show-again").checked) h.showNoteOnCheckin = false;
+    doCheckin(h);
+  }
+  pendingCheckinId = null;
+  document.getElementById("why-overlay").classList.add("hidden");
+});
+document.getElementById("why-close").addEventListener("click", () => {
+  // closing without confirming does NOT check in — reading the reasons is the deal
+  pendingCheckinId = null;
+  document.getElementById("why-overlay").classList.add("hidden");
+});
+
 document.getElementById("running-bar-switch").addEventListener("click", () => {
   document.querySelector('[data-tab="tracker"]').click();
   document.getElementById("track-name").focus();

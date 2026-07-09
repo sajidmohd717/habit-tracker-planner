@@ -186,6 +186,11 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .note-actions { margin-top: 6px; }
 .note-actions .btn, .add-note-btn { font-size: 0.8rem; padding: 4px 10px; }
 
+/* ===== Why-note check-in modal ===== */
+#why-habit-name { font-weight: 600; color: var(--text); }
+#why-note-text { font-size: 0.92rem; }
+.why-toggle { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
+
 /* ===== Long-running check modal ===== */
 .check-question { font-size: 1rem; line-height: 1.5; }
 .check-question strong { color: var(--primary-dark); }
