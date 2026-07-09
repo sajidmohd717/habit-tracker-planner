@@ -21,6 +21,7 @@ function load() {
 }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.dispatchEvent(new Event("state-saved")); // sync.js mirrors to the cloud when signed in
 }
 
 /* ---------- date helpers ---------- */

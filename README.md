@@ -46,9 +46,33 @@ Plan the day, live the day, then compare intention against reality — all in on
 6. **After a week of consistency**, the app will nudge you to stack your next habit.
 
 ### Things to know
-- **Your data never leaves your device.** Everything is stored in your browser's `localStorage`. No servers, no tracking (except the tracking *you* do 😄).
-- That also means data is **per-browser, per-device** — streaks on your phone won't sync to your laptop (yet).
-- Clearing your browser data will erase your habits and history.
+- **Local-first.** Everything is stored in your browser's `localStorage` and works fully offline with no account.
+- **Optional cloud sync.** If the deployment has Firebase configured, a *Sign in with Google* button appears — signing in syncs your habits, plans, and tracked time across devices, live. On first sign-in, local and cloud data are merged so no progress is lost on either side.
+- Without sign-in, data is **per-browser, per-device**, and clearing browser data erases it.
+
+## Enabling cloud sync (for your own deployment)
+
+Sync is off by default (`firebase-config.js` has a `null` config, and the app runs local-only). To enable it on your fork:
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) → **Add project** (Analytics not needed).
+2. **Build → Authentication → Get started → Sign-in method** → enable **Google**.
+3. Still in Authentication → **Settings → Authorized domains** → add your GitHub Pages domain (e.g. `yourname.github.io`).
+4. **Build → Firestore Database → Create database** (production mode), then set the rules to:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /users/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+5. Project overview → **Add app → Web** → copy the config object into `firebase-config.js`:
+   ```js
+   window.FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "...", ... };
+   ```
+6. Commit and push. (The config is safe to commit — Firebase web configs are public by design; the Firestore rules are what protect the data.)
 
 ## Running Locally
 
@@ -66,9 +90,11 @@ Then open `http://localhost:4173`.
 ## Project Structure
 
 ```
-index.html   # markup for all three tabs + task wizard modal
-styles.css   # all styling, one file
-app.js       # state, localStorage persistence, and all logic
+index.html         # markup for all three tabs + modals
+styles.css         # all styling, one file
+app.js             # state, localStorage persistence, and all logic
+firebase-config.js # optional Firebase config (null = local-only mode)
+sync.js            # Google sign-in + Firestore cross-device sync
 ```
 
 ## Roadmap / Ideas
@@ -80,7 +106,7 @@ app.js       # state, localStorage persistence, and all logic
 - [ ] Drag-to-reschedule blocks on the timeline
 - [ ] Weekly/monthly time reports
 - [ ] Data export/import (JSON)
-- [ ] Optional sync across devices
+- [x] Optional sync across devices (Google sign-in + Firestore)
 
 ## Contributing
 

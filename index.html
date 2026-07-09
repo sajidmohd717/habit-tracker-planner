@@ -8,6 +8,11 @@
 </head>
 <body>
   <header class="app-header">
+    <div id="auth-area" class="auth-area">
+      <span id="user-info" class="user-info hidden"></span>
+      <button id="sign-in-btn" class="btn auth-btn">Sign in with Google</button>
+      <button id="sign-out-btn" class="btn auth-btn hidden">Sign out</button>
+    </div>
     <h1>1% Better</h1>
     <p class="tagline">Build habits. Plan your day. Improve 1% every day.</p>
     <nav class="tabs">
@@ -196,6 +201,8 @@
     </div>
   </div>
 
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
+  <script type="module" src="sync.js"></script>
 </body>
 </html>
