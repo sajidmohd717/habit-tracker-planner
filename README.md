@@ -1,4 +1,6 @@
-# 1% Better — Habit Tracker & Day Planner
+# Habitloom — Habit Tracker & Day Planner
+
+*Weave a better you, one day at a time.*
 
 **Live app: [sajidmohd717.github.io/habit-tracker-planner](https://sajidmohd717.github.io/habit-tracker-planner/)**
 

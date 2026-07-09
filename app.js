@@ -1,5 +1,6 @@
-/* ============ 1% Better — Habit Tracker & Planner ============ */
+/* ============ Habitloom — Habit Tracker & Planner ============ */
 
+// historical key from before the Habitloom rename — do not change, or existing users lose their data
 const STORAGE_KEY = "one-percent-better";
 const MAX_FREEZES = 2;
 const FREEZE_EVERY = 7; // earn a freeze every 7-day streak milestone
