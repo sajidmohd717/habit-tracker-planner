@@ -259,6 +259,16 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 /* ===== Planner ===== */
 .planner-head { display: flex; justify-content: space-between; align-items: center; }
 .planner-head h2 { margin-bottom: 0; }
+.next-up {
+  margin-top: 10px;
+  font-size: 0.92rem;
+  background: #eef1ff;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  padding: 8px 12px;
+  color: #24308a;
+}
+.next-up strong { color: var(--primary-dark); }
 
 .timeline-card { padding: 12px 8px 12px 0; }
 .timeline { position: relative; }

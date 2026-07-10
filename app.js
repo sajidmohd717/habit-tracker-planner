@@ -349,7 +349,38 @@ function deleteTask(id) {
   renderTimeline();
 }
 
+// "Gym starts in 1h 20m" banner above the timeline
+function renderNextUp() {
+  const el = document.getElementById("next-up");
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const upcoming = todaysTasks()
+    .filter(t => !t.done && t.startMin > nowMin)
+    .sort((a, b) => a.startMin - b.startMin)[0];
+  const current = todaysTasks()
+    .filter(t => !t.done && t.startMin <= nowMin && t.startMin + t.durMin > nowMin)
+    .sort((a, b) => b.startMin - a.startMin)[0];
+
+  const parts = [];
+  if (current) {
+    const left = current.startMin + current.durMin - nowMin;
+    parts.push(`Now: <strong></strong> (${fmtDuration(left)} left)`);
+  }
+  if (upcoming) {
+    const until = upcoming.startMin - nowMin;
+    parts.push(`Next: <strong></strong> in <strong>${fmtDuration(until)}</strong> (${fmtTime(upcoming.startMin)})`);
+  }
+  el.classList.toggle("hidden", parts.length === 0);
+  if (!parts.length) return;
+  el.innerHTML = "⏳ " + parts.join(" · ");
+  const strongs = el.querySelectorAll("strong");
+  let i = 0;
+  if (current) strongs[i++].textContent = current.name;
+  if (upcoming) strongs[i].textContent = upcoming.name;
+}
+
 function renderTimeline() {
+  renderNextUp();
   const timeline = document.getElementById("timeline");
   const empty = document.getElementById("tasks-empty");
   const tasks = todaysTasks().slice().sort((a, b) => a.startMin - b.startMin);
