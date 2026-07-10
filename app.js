@@ -19,6 +19,7 @@ function load() {
   if (!s) s = { habits: [], tasksByDate: {} };
   if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
   if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
+  normalizeRunning(s);
   return s;
 }
 function save() {
@@ -330,8 +331,24 @@ const LABELS = ["necessary", "normal", "unnecessary", "bad"];
 const LABEL_TITLES = { necessary: "Necessary", normal: "Normal", unnecessary: "Unnecessary", bad: "Bad" };
 
 // entry: { id, name, label, start (ms), end (ms|null) }
+// Always the NEWEST running entry — duplicates from sync races must not
+// steer the tracking bar or the "are you still on this?" check.
 function runningEntry() {
-  return state.entries.find(e => e.end === null) || null;
+  let r = null;
+  for (const e of state.entries) {
+    if (e.end === null && (!r || e.start > r.start)) r = e;
+  }
+  return r;
+}
+
+// There must never be more than one running entry: close all but the newest,
+// each older one ending where the next began. Repairs states produced by
+// sync races or multiple open tabs.
+function normalizeRunning(s) {
+  const running = s.entries.filter(e => e.end === null).sort((a, b) => a.start - b.start);
+  for (let i = 0; i < running.length - 1; i++) {
+    running[i].end = Math.max(running[i].start + 1000, running[i + 1].start);
+  }
 }
 
 function startActivity(name, label) {
@@ -346,12 +363,14 @@ function startActivity(name, label) {
   renderTracker();
 }
 
-// internal only — no UI stop button exists; called when a new activity starts
+// internal only — no UI stop button exists; called when a new activity starts.
+// Ends every running entry, not just the newest, so duplicates can't linger.
 function endRunning() {
+  const running = state.entries.filter(e => e.end === null);
+  if (!running.length) return;
+  normalizeRunning(state); // closes all but the newest
   const r = runningEntry();
-  if (!r) return;
-  r.end = Date.now();
-  if (r.end - r.start < 1000) r.end = r.start + 1000; // keep at least 1s
+  r.end = Math.max(r.start + 1000, Date.now());
   save();
 }
 
@@ -496,6 +515,14 @@ setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
 /* ---------- long-running check: "are you still on this?" ---------- */
 
 const CHECK_AFTER_MS = 3 * 3600000; // ask once an activity passes 3 hours
+let checkEntryId = null; // the entry the open modal is asking about
+
+// the modal's answer only applies if the same entry is still the running one
+// (a sync from another device may have switched activities meanwhile)
+function checkTarget() {
+  const r = runningEntry();
+  return r && r.id === checkEntryId ? r : null;
+}
 
 function checkLongRunning() {
   const r = runningEntry();
@@ -505,6 +532,7 @@ function checkLongRunning() {
   // don't nag: re-ask only after another full interval since the last answer
   if (r.lastCheckAck && Date.now() - r.lastCheckAck < CHECK_AFTER_MS) return;
   if (!document.getElementById("check-overlay").classList.contains("hidden")) return;
+  checkEntryId = r.id;
   document.getElementById("check-question").innerHTML =
     `You've been on <strong></strong> for <strong>${fmtDuration(Math.round(elapsed / 60000))}</strong> — is that right?`;
   document.getElementById("check-question").querySelector("strong").textContent = r.name;
@@ -518,17 +546,18 @@ function closeCheck() {
 }
 
 document.getElementById("check-still").addEventListener("click", () => {
-  const r = runningEntry();
+  const r = checkTarget();
   if (r) { r.lastCheckAck = Date.now(); save(); }
   closeCheck();
 });
 
 document.getElementById("check-switched").addEventListener("click", () => {
+  const r = checkTarget();
+  if (!r) { closeCheck(); return; } // entry changed under us — question is moot
   document.getElementById("check-ask").classList.add("hidden");
   document.getElementById("check-fix").classList.remove("hidden");
   const guess = new Date(); // default guess: halfway through the running entry
-  const r = runningEntry();
-  if (r) guess.setTime(r.start + (Date.now() - r.start) / 2);
+  guess.setTime(r.start + (Date.now() - r.start) / 2);
   document.getElementById("fix-time").value =
     `${String(guess.getHours()).padStart(2, "0")}:${String(guess.getMinutes()).padStart(2, "0")}`;
   document.getElementById("fix-name").value = "";
@@ -541,8 +570,8 @@ document.getElementById("fix-cancel").addEventListener("click", () => {
 });
 
 document.getElementById("fix-save").addEventListener("click", () => {
-  const r = runningEntry();
-  if (!r) { closeCheck(); return; }
+  const r = checkTarget();
+  if (!r) { closeCheck(); return; } // entry changed under us — don't split the wrong one
   const name = document.getElementById("fix-name").value.trim();
   if (!name) { alert("What have you been doing? A rough answer is fine."); return; }
   const label = document.getElementById("fix-label").value;

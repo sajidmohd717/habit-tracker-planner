@@ -59,14 +59,21 @@ async function initSync() {
     if (!u) return;
     userInfo.textContent = u.displayName || u.email || "Signed in";
 
-    // first contact: merge local and cloud so no device loses progress
     const ref = doc(db, "users", u.uid);
+    const lastUid = localStorage.getItem("opb-last-uid");
     try {
       const snap = await getDoc(ref);
-      if (snap.exists() && snap.data().state) {
-        const remote = JSON.parse(snap.data().state);
+      const remote = snap.exists() && snap.data().state ? JSON.parse(snap.data().state) : null;
+      if (lastUid && lastUid !== u.uid) {
+        // different account than last time: the local data belongs to the
+        // previous account — adopt this account's cloud copy wholesale
+        // instead of merging, so data never bleeds between accounts
+        adoptState(remote || { habits: [], tasksByDate: {}, entries: [], resetAt: 0 });
+      } else if (remote) {
+        // same account (or this device's first sign-in): merge so no side loses progress
         adoptState(mergeStates(state, remote));
       }
+      localStorage.setItem("opb-last-uid", u.uid);
     } catch (e) {
       console.error("Initial sync failed:", e);
     }
@@ -83,6 +90,7 @@ async function initSync() {
   function adoptState(next) {
     suppressPush = true;
     state = next;
+    normalizeRunning(state); // never let two "running" entries survive an adopt
     save();
     suppressPush = false;
     renderHabits();
