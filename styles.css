@@ -271,6 +271,20 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .next-up strong { color: var(--primary-dark); }
 
 .timeline-card { padding: 12px 8px 12px 0; }
+.zoom-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 8px 0;
+}
+.zoom-btn {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 2px 12px;
+  border: 1px solid var(--border);
+}
+.hour-row.half .hour-label { font-size: 0.68rem; opacity: 0.7; }
 .timeline { position: relative; }
 .timeline.empty { display: none; }
 .hour-row {

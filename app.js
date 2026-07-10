@@ -6,7 +6,11 @@ const MAX_FREEZES = 2;
 const FREEZE_EVERY = 7; // earn a freeze every 7-day streak milestone
 const DAY_START_HOUR = 6;  // timeline shows 6:00 – 23:00
 const DAY_END_HOUR = 23;
-const PX_PER_HOUR = 56;
+const PX_PER_ROW = 56;
+// zoom: 0 = 1-hour rows, 1 = 30-minute rows (device preference, not synced)
+let timelineZoom = Number(localStorage.getItem("opb-zoom")) || 0;
+function rowMinutes() { return timelineZoom === 1 ? 30 : 60; }
+function pxPerHour() { return (60 / rowMinutes()) * PX_PER_ROW; }
 
 let state = load();
 
@@ -399,10 +403,10 @@ function renderTimeline() {
   startHour = Math.max(0, startHour);
   endHour = Math.min(24, endHour);
 
-  for (let h = startHour; h < endHour; h++) {
+  for (let m = startHour * 60; m < endHour * 60; m += rowMinutes()) {
     const row = document.createElement("div");
-    row.className = "hour-row";
-    row.innerHTML = `<div class="hour-label">${fmtTime(h * 60)}</div>`;
+    row.className = "hour-row" + (m % 60 !== 0 ? " half" : "");
+    row.innerHTML = `<div class="hour-label">${fmtTime(m)}</div>`;
     timeline.appendChild(row);
   }
 
@@ -434,8 +438,8 @@ function renderTimeline() {
   const layer = document.createElement("div");
   layer.className = "blocks-layer";
   for (const t of tasks) {
-    const top = ((t.startMin - startHour * 60) / 60) * PX_PER_HOUR;
-    const height = Math.max(22, (t.durMin / 60) * PX_PER_HOUR - 2);
+    const top = ((t.startMin - startHour * 60) / 60) * pxPerHour();
+    const height = Math.max(22, (t.durMin / 60) * pxPerHour() - 2);
     const block = document.createElement("div");
     block.className = "time-block" + (t.aux ? " aux" : "") + (t.done ? " done" : "");
     block.style.top = `${top}px`;
@@ -465,7 +469,7 @@ function renderTimeline() {
   if (nowMin >= startHour * 60 && nowMin <= endHour * 60) {
     const line = document.createElement("div");
     line.className = "now-line";
-    line.style.top = `${((nowMin - startHour * 60) / 60) * PX_PER_HOUR}px`;
+    line.style.top = `${((nowMin - startHour * 60) / 60) * pxPerHour()}px`;
     line.innerHTML = `<span class="now-label">${fmtTime(nowMin)}</span>`;
     timeline.appendChild(line);
   }
@@ -876,6 +880,17 @@ document.getElementById("timeline").addEventListener("click", e => {
   if (remove) deleteTask(remove.dataset.remove);
 });
 
+function setZoom(z) {
+  timelineZoom = z;
+  localStorage.setItem("opb-zoom", String(z));
+  document.getElementById("zoom-in").disabled = z === 1;
+  document.getElementById("zoom-out").disabled = z === 0;
+  document.getElementById("zoom-label").textContent = z === 1 ? "30m" : "1h";
+  renderTimeline();
+}
+document.getElementById("zoom-in").addEventListener("click", () => setZoom(1));
+document.getElementById("zoom-out").addEventListener("click", () => setZoom(0));
+
 document.getElementById("open-task-wizard").addEventListener("click", () => wizard.open());
 document.getElementById("wizard-close").addEventListener("click", () => wizard.close());
 document.getElementById("wizard-next").addEventListener("click", () => wizard.next());
@@ -962,6 +977,6 @@ document.getElementById("reset-account-btn").addEventListener("click", () => {
 /* ---------- init ---------- */
 reconcileHabits();
 renderHabits();
-renderTimeline();
+setZoom(timelineZoom); // also renders the timeline
 renderTracker();
 checkLongRunning();
