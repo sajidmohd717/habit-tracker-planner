@@ -518,15 +518,34 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
 .category-help { margin: -4px 0 16px; color: var(--muted); font-size: .86rem; line-height: 1.5; }
 .category-list { display: flex; flex-direction: column; gap: 8px; }
 .category-row { display: grid; grid-template-columns: 42px minmax(120px, 1fr) auto auto; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: #fafbfe; }
-.category-actions { display: flex; gap: 6px; }
 .category-row.archived { opacity: .62; }
 .category-color-input { width: 38px; height: 38px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: #fff; cursor: pointer; }
 .category-name-input { width: 100%; }
-.category-state { color: var(--muted); font-size: .72rem; font-weight: 700; text-transform: uppercase; }
 .category-save-btn { color: var(--primary-dark); background: #edf0ff; font-weight: 700; }
-.category-archive-btn { padding-inline: 10px; font-size: .82rem; }
-.category-delete-btn { padding-inline: 10px; font-size: .82rem; color: #c73e4d; }
-.category-delete-btn:hover { background: #fdecee; color: #a92f3d; }
+.category-more { position: relative; }
+.category-more-btn { padding: 6px 11px; font-size: 1rem; font-weight: 700; letter-spacing: .05em; color: var(--muted); }
+.category-more-btn:hover { color: var(--text, #1b1f2a); }
+.category-menu {
+  position: absolute; z-index: 55; top: calc(100% + 4px); right: 0; min-width: 132px;
+  padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: #fff;
+  box-shadow: 0 4px 10px rgba(20, 30, 60, .07), 0 14px 34px rgba(20, 30, 60, .14);
+  animation: cat-menu-in .16s ease;
+}
+.category-menu-item {
+  display: block; width: 100%; padding: 8px 10px; border: none; border-radius: 7px;
+  background: none; font-size: .9rem; font-family: inherit; text-align: left; cursor: pointer;
+}
+.category-menu-item:hover { background: #f3f5fb; }
+.category-menu-item.danger { color: #c73e4d; }
+.category-menu-item.danger:hover { background: #fdecee; color: #a92f3d; }
+.category-archived-toggle {
+  display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 6px 2px;
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+}
+.category-archived-toggle:hover { color: var(--text, #1b1f2a); }
+.category-archived-toggle svg { transition: transform .18s ease; }
+.category-archived-toggle.open svg { transform: rotate(90deg); }
 .category-delete-modal { max-width: 440px; display: flex; flex-direction: column; gap: 12px; }
 .category-delete-move-row { display: flex; gap: 8px; align-items: center; }
 .category-delete-move-row .cat-select { flex: 1; min-width: 0; }
@@ -556,9 +575,8 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
   .entry-time { grid-column: 2; }
   .entry-dur { grid-column: 3; grid-row: 1; }
   .entry-row .btn { grid-column: 3; grid-row: 2; }
-  .category-row { grid-template-columns: 38px minmax(0, 1fr) auto; }
-  .category-state { display: none; }
-  .category-actions { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; }
+  .category-row { grid-template-columns: 38px minmax(0, 1fr) auto auto; }
+  .category-save-btn { padding-inline: 10px; }
   .category-delete-move-row { flex-direction: column; align-items: stretch; }
   .category-add-row { flex-direction: column; }
 }

@@ -924,31 +924,45 @@ document.getElementById("category-color").addEventListener("input", event => {
   renderCategorySwatches();
 });
 
+let archivedSectionOpen = false; // "Archived (n)" section state in the manager
+
+function categoryRow(category) {
+  const row = document.createElement("div");
+  row.className = "category-row" + (category.archived ? " archived" : "");
+  row.dataset.categoryId = category.id;
+  row.innerHTML = `
+    <input type="color" class="category-color-input" aria-label="Category color">
+    <input type="text" class="category-name-input" maxlength="32" aria-label="Category name">
+    <button type="button" class="btn category-save-btn" data-category-save>Save</button>
+    <div class="category-more">
+      <button type="button" class="btn ghost category-more-btn" data-category-menu aria-haspopup="menu" aria-label="More options">⋯</button>
+      <div class="category-menu hidden" role="menu">
+        <button type="button" class="category-menu-item" role="menuitem" data-category-archive>${category.archived ? "Restore" : "Archive"}</button>
+        <button type="button" class="category-menu-item danger" role="menuitem" data-category-delete>Delete…</button>
+      </div>
+    </div>`;
+  row.querySelector(".category-color-input").value = category.color;
+  row.querySelector(".category-name-input").value = category.name;
+  return row;
+}
+
 function renderCategoryManager() {
   renderCategorySwatches();
   const list = document.getElementById("category-list");
   list.innerHTML = "";
-  const ordered = [...state.categories].sort((a, b) =>
-    Number(a.archived) - Number(b.archived) || (a.createdAt || 0) - (b.createdAt || 0));
-  for (const category of ordered) {
-    const row = document.createElement("div");
-    row.className = "category-row" + (category.archived ? " archived" : "");
-    row.dataset.categoryId = category.id;
-    row.innerHTML = `
-      <input type="color" class="category-color-input" aria-label="Category color">
-      <input type="text" class="category-name-input" maxlength="32" aria-label="Category name">
-      <span class="category-state"></span>
-      <div class="category-actions">
-        <button type="button" class="btn category-save-btn" data-category-save>Save</button>
-        <button type="button" class="btn ghost category-archive-btn" data-category-archive></button>
-        <button type="button" class="btn ghost category-delete-btn" data-category-delete>Delete</button>
-      </div>`;
-    row.querySelector(".category-color-input").value = category.color;
-    row.querySelector(".category-name-input").value = category.name;
-    row.querySelector(".category-state").textContent = category.archived ? "Archived" : "Active";
-    row.querySelector("[data-category-archive]").textContent = category.archived ? "Restore" : "Archive";
-    list.appendChild(row);
-  }
+  const ordered = [...state.categories].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  for (const category of ordered.filter(item => !item.archived)) list.appendChild(categoryRow(category));
+
+  const archived = ordered.filter(item => item.archived);
+  if (!archived.length) return;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "category-archived-toggle" + (archivedSectionOpen ? " open" : "");
+  toggle.dataset.archivedToggle = "";
+  toggle.setAttribute("aria-expanded", String(archivedSectionOpen));
+  toggle.innerHTML = `<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Archived (${archived.length})`;
+  list.appendChild(toggle);
+  if (archivedSectionOpen) for (const category of archived) list.appendChild(categoryRow(category));
 }
 
 function saveCategoryRow(row) {
@@ -977,6 +991,7 @@ function toggleCategoryArchive(id) {
     return;
   }
   category.archived = !category.archived;
+  if (category.archived) archivedSectionOpen = true; // show where the row went
   touch(category);
   save();
   renderCategoryManager();
@@ -1333,11 +1348,28 @@ document.getElementById("categories-overlay").addEventListener("click", event =>
   if (event.target.id === "categories-overlay") event.target.classList.add("hidden");
 });
 document.getElementById("category-list").addEventListener("click", event => {
+  if (event.target.closest("[data-archived-toggle]")) {
+    archivedSectionOpen = !archivedSectionOpen;
+    renderCategoryManager();
+    return;
+  }
   const row = event.target.closest(".category-row");
   if (!row) return;
+  if (event.target.closest("[data-category-menu]")) {
+    const menu = row.querySelector(".category-menu");
+    const wasHidden = menu.classList.contains("hidden");
+    for (const open of document.querySelectorAll(".category-menu")) open.classList.add("hidden");
+    if (wasHidden) menu.classList.remove("hidden");
+    return;
+  }
   if (event.target.closest("[data-category-save]")) saveCategoryRow(row);
   if (event.target.closest("[data-category-archive]")) toggleCategoryArchive(row.dataset.categoryId);
   if (event.target.closest("[data-category-delete]")) openCategoryDelete(row.dataset.categoryId);
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest(".category-more")) {
+    for (const open of document.querySelectorAll(".category-menu")) open.classList.add("hidden");
+  }
 });
 document.getElementById("category-delete-wipe").addEventListener("click", () => confirmCategoryDelete("wipe"));
 document.getElementById("category-delete-move").addEventListener("click", () => confirmCategoryDelete("move"));
