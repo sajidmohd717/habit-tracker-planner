@@ -85,6 +85,14 @@ test("category renames, colors, and archive state use the latest revision", () =
   assert.equal(stableStringify(mergeStates(old, fresh)), stableStringify(mergeStates(fresh, old)));
 });
 
+test("a deleted category is not resurrected by a stale device", () => {
+  const stale = emptyState(), removed = emptyState();
+  stale.categories = [{ id: "gone", name: "Old", color: "#112233", archived: false, updatedAt: 100 }];
+  removed.deleted.categories.gone = 200;
+  assert.equal(mergeStates(stale, removed).categories.length, 0);
+  assert.equal(mergeStates(removed, stale).categories.length, 0);
+});
+
 test("legacy records without revision metadata remain readable", () => {
   const legacy = { habits: [], tasksByDate: {}, entries: [{ id: "legacy", start: 1, end: 2 }], resetAt: 0 };
   assert.equal(mergeStates(legacy, emptyState()).entries.length, 1);

@@ -24,8 +24,8 @@ function load() {
   if (!s) s = { habits: [], tasksByDate: {} };
   if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
   if (!s.tasksByDate) s.tasksByDate = {};
-  if (!s.deleted) s.deleted = { habits: {}, tasks: {}, entries: {} };
-  for (const kind of ["habits", "tasks", "entries"]) if (!s.deleted[kind]) s.deleted[kind] = {};
+  if (!s.deleted) s.deleted = { habits: {}, tasks: {}, entries: {}, categories: {} };
+  for (const kind of ["habits", "tasks", "entries", "categories"]) if (!s.deleted[kind]) s.deleted[kind] = {};
   for (const h of s.habits) if (!h.checkins) h.checkins = []; // per-day history for the heatmap
   if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
   ensureCategoryState(s);
@@ -43,7 +43,7 @@ function touch(item, at = Date.now()) {
 }
 
 function rememberDeletion(kind, id) {
-  state.deleted ??= { habits: {}, tasks: {}, entries: {} };
+  state.deleted ??= { habits: {}, tasks: {}, entries: {}, categories: {} };
   state.deleted[kind] ??= {};
   state.deleted[kind][id] = Date.now();
 }
@@ -938,8 +938,11 @@ function renderCategoryManager() {
       <input type="color" class="category-color-input" aria-label="Category color">
       <input type="text" class="category-name-input" maxlength="32" aria-label="Category name">
       <span class="category-state"></span>
-      <button type="button" class="btn category-save-btn" data-category-save>Save</button>
-      <button type="button" class="btn ghost category-archive-btn" data-category-archive></button>`;
+      <div class="category-actions">
+        <button type="button" class="btn category-save-btn" data-category-save>Save</button>
+        <button type="button" class="btn ghost category-archive-btn" data-category-archive></button>
+        <button type="button" class="btn ghost category-delete-btn" data-category-delete>Delete</button>
+      </div>`;
     row.querySelector(".category-color-input").value = category.color;
     row.querySelector(".category-name-input").value = category.name;
     row.querySelector(".category-state").textContent = category.archived ? "Archived" : "Active";
@@ -975,6 +978,71 @@ function toggleCategoryArchive(id) {
   }
   category.archived = !category.archived;
   touch(category);
+  save();
+  renderCategoryManager();
+  renderTracker();
+}
+
+let deleteCategoryId = null; // category the delete-confirm modal is about
+
+function openCategoryDelete(id) {
+  const category = state.categories.find(item => item.id === id);
+  if (!category) return;
+  if (!category.archived && activeCategories().length === 1) {
+    alert("Keep at least one active category for tracking.");
+    return;
+  }
+  const targets = activeCategories().filter(item => item.id !== id);
+  if (!targets.length) {
+    alert("Keep at least one active category for tracking.");
+    return;
+  }
+  deleteCategoryId = id;
+  const count = state.entries.filter(entry => entry.categoryId === id).length;
+  document.getElementById("category-delete-name").textContent = category.name;
+  document.getElementById("category-delete-count").textContent =
+    count === 0 ? "It has no tracked activities."
+      : count === 1 ? "It has 1 tracked activity."
+      : `It has ${count} tracked activities.`;
+  document.getElementById("category-delete-move-row").classList.toggle("hidden", count === 0);
+  document.getElementById("category-delete-wipe").textContent =
+    count === 0 ? "Delete category" : "Delete category and its activities";
+
+  const select = document.getElementById("category-delete-target");
+  select.innerHTML = "";
+  for (const target of targets) {
+    const option = document.createElement("option");
+    option.value = target.id;
+    option.textContent = target.name;
+    select.appendChild(option);
+  }
+  if (select.catSelectSync) select.catSelectSync();
+  document.getElementById("category-delete-overlay").classList.remove("hidden");
+}
+
+function confirmCategoryDelete(mode) {
+  const id = deleteCategoryId;
+  const category = state.categories.find(item => item.id === id);
+  if (!category) return;
+  const now = Date.now();
+  if (mode === "move") {
+    const targetId = document.getElementById("category-delete-target").value;
+    if (!targetId || targetId === id) return;
+    for (const entry of state.entries) {
+      if (entry.categoryId !== id) continue;
+      entry.categoryId = targetId;
+      touch(entry, now);
+    }
+  } else {
+    for (const entry of state.entries) {
+      if (entry.categoryId === id) rememberDeletion("entries", entry.id);
+    }
+    state.entries = state.entries.filter(entry => entry.categoryId !== id);
+  }
+  rememberDeletion("categories", id);
+  state.categories = state.categories.filter(item => item.id !== id);
+  deleteCategoryId = null;
+  document.getElementById("category-delete-overlay").classList.add("hidden");
   save();
   renderCategoryManager();
   renderTracker();
@@ -1240,6 +1308,7 @@ document.getElementById("need-after").addEventListener("change", e =>
 
 enhanceCategorySelect(document.getElementById("track-category"));
 enhanceCategorySelect(document.getElementById("fix-label"));
+enhanceCategorySelect(document.getElementById("category-delete-target"));
 
 document.getElementById("track-form").addEventListener("submit", e => {
   e.preventDefault();
@@ -1268,6 +1337,19 @@ document.getElementById("category-list").addEventListener("click", event => {
   if (!row) return;
   if (event.target.closest("[data-category-save]")) saveCategoryRow(row);
   if (event.target.closest("[data-category-archive]")) toggleCategoryArchive(row.dataset.categoryId);
+  if (event.target.closest("[data-category-delete]")) openCategoryDelete(row.dataset.categoryId);
+});
+document.getElementById("category-delete-wipe").addEventListener("click", () => confirmCategoryDelete("wipe"));
+document.getElementById("category-delete-move").addEventListener("click", () => confirmCategoryDelete("move"));
+document.getElementById("category-delete-cancel").addEventListener("click", () => {
+  deleteCategoryId = null;
+  document.getElementById("category-delete-overlay").classList.add("hidden");
+});
+document.getElementById("category-delete-overlay").addEventListener("click", event => {
+  if (event.target.id === "category-delete-overlay") {
+    deleteCategoryId = null;
+    event.target.classList.add("hidden");
+  }
 });
 document.getElementById("category-form").addEventListener("submit", event => {
   event.preventDefault();

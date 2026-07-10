@@ -158,6 +158,25 @@
     </div>
   </div>
 
+  <!-- ============ CATEGORY DELETE CONFIRM MODAL ============ -->
+  <div id="category-delete-overlay" class="overlay hidden">
+    <div class="modal category-delete-modal">
+      <div class="modal-head">
+        <div>
+          <span class="section-kicker">Careful now</span>
+          <h3>Delete "<span id="category-delete-name"></span>"?</h3>
+        </div>
+        <button id="category-delete-cancel" class="btn ghost" aria-label="Cancel delete">✕</button>
+      </div>
+      <p class="category-help"><span id="category-delete-count"></span> You can move those activities to another category, or delete them along with it. Deleting can't be undone.</p>
+      <div id="category-delete-move-row" class="category-delete-move-row">
+        <select id="category-delete-target" aria-label="Move activities to category"></select>
+        <button id="category-delete-move" class="btn primary">Move activities, then delete</button>
+      </div>
+      <button id="category-delete-wipe" class="btn category-delete-wipe-btn">Delete category and its activities</button>
+    </div>
+  </div>
+
   <!-- ============ TASK WIZARD MODAL ============ -->
   <div id="wizard-overlay" class="overlay hidden">
     <div class="modal">

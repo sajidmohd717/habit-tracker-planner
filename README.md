@@ -32,8 +32,10 @@ Plan the day, live the day, then compare intention against reality — all in on
 - Check off blocks as you complete them, or remove them. Each day starts with a fresh plan.
 
 ### ⏱ Time Tracker
-- Organize activities with **custom categories**. Add, rename, recolor, archive, and restore categories as your life changes.
-- Start with practical defaults—**Work · Family · Studies · Personal · Entertainment · Time wasters**—or make the system entirely your own.
+- Organize activities with **custom categories**. Add, rename, recolor, archive, restore, and delete categories as your life changes.
+- Start with three practical defaults—**Work · Family · Studies**—and add your own as needed (Fitness, Entertainment, Time wasters, …).
+- New categories pick from a **curated palette of distinct colors**, with a custom color picker for anything beyond it.
+- **Deleting a category** offers a choice: move its tracked history into another category, or delete the history along with it. Archiving remains the safe option that keeps history intact.
 - **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
@@ -45,7 +47,7 @@ Plan the day, live the day, then compare intention against reality — all in on
 1. **Open the [live app](https://sajidmohd717.github.io/habit-tracker-planner/)** — no sign-up needed.
 2. **Start with ONE habit.** Add it on the Habits tab. Every day you keep it, hit *Continue streak*.
 3. **Plan tomorrow the night before (or your day in the morning).** On the Planner tab, add each task with an honest time estimate. When the wizard asks about before/after time — take it seriously; that's where plans usually fall apart.
-4. **Track as you go.** On the Tracker tab, start the next activity whenever you switch; doing so ends the previous activity automatically. For gaps, switch to a break or downtime activity rather than stopping the timeline. Be honest with the labels — the "Unnecessary" and "Bad" totals are the whole point.
+4. **Track as you go.** On the Tracker tab, start the next activity whenever you switch; doing so ends the previous activity automatically. For gaps, switch to a break or downtime activity rather than stopping the timeline. Be honest with the categories — knowing how much time went to time wasters is the whole point.
 5. **Review at night.** How much of the bar is green? Did reality match the plan? Adjust tomorrow accordingly.
 6. **After a week of consistency**, the app will nudge you to stack your next habit.
 
@@ -102,7 +104,7 @@ category-model.js  # category defaults and backward-compatible data migration
 state-merge.js     # deterministic cross-tab and cross-device state merging
 firebase-config.js # optional Firebase config (null = local-only mode)
 sync.js            # Google sign-in + Firestore cross-device sync
-tests/              # merge and simultaneous-switch regression tests
+tests/              # merge, deletion-tombstone, and category-migration regression tests
 ```
 
 ## Roadmap / Ideas

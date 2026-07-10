@@ -2,7 +2,7 @@
   function emptyState() {
     return {
       habits: [], tasksByDate: {}, entries: [], categories: [], resetAt: 0,
-      deleted: { habits: {}, tasks: {}, entries: {} },
+      deleted: { habits: {}, tasks: {}, entries: {}, categories: {} },
     };
   }
 
@@ -64,6 +64,7 @@
           habits: { ...(winner.deleted?.habits || {}) },
           tasks: { ...(winner.deleted?.tasks || {}) },
           entries: { ...(winner.deleted?.entries || {}) },
+          categories: { ...(winner.deleted?.categories || {}) },
         },
       };
     }
@@ -72,6 +73,7 @@
       habits: mergedDeletionMaps(a.deleted?.habits, b.deleted?.habits),
       tasks: mergedDeletionMaps(a.deleted?.tasks, b.deleted?.tasks),
       entries: mergedDeletionMaps(a.deleted?.entries, b.deleted?.entries),
+      categories: mergedDeletionMaps(a.deleted?.categories, b.deleted?.categories),
     };
     const result = { ...emptyState(), resetAt: ra, deleted };
 
@@ -95,6 +97,7 @@
       categories.set(category.id, newerCopy(categories.get(category.id), category));
     }
     result.categories = [...categories.values()]
+      .filter(category => !deleted.categories[category.id])
       .sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || x.id.localeCompare(y.id));
 
     const entries = new Map();
