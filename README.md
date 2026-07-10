@@ -33,8 +33,9 @@ Plan the day, live the day, then compare intention against reality — all in on
 
 ### ⏱ Time Tracker
 - Start an activity with one of four labels: **Necessary · Normal · Unnecessary · Bad**.
-- **One timer at a time** — starting a new activity automatically stops the current one.
-- A **persistent tracking bar** stays visible on every tab with a live timer and stop button.
+- **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
+- There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
+- A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
 - **"Where your time went today"** — a color-coded breakdown bar with per-label totals and percentages.
 - **Recent activity chips** — restart a past activity with one tap.
 
@@ -43,13 +44,14 @@ Plan the day, live the day, then compare intention against reality — all in on
 1. **Open the [live app](https://sajidmohd717.github.io/habit-tracker-planner/)** — no sign-up needed.
 2. **Start with ONE habit.** Add it on the Habits tab. Every day you keep it, hit *Continue streak*.
 3. **Plan tomorrow the night before (or your day in the morning).** On the Planner tab, add each task with an honest time estimate. When the wizard asks about before/after time — take it seriously; that's where plans usually fall apart.
-4. **Track as you go.** On the Tracker tab, start a timer whenever you switch activities. Be honest with the labels — the "Unnecessary" and "Bad" totals are the whole point.
+4. **Track as you go.** On the Tracker tab, start the next activity whenever you switch; doing so ends the previous activity automatically. For gaps, switch to a break or downtime activity rather than stopping the timeline. Be honest with the labels — the "Unnecessary" and "Bad" totals are the whole point.
 5. **Review at night.** How much of the bar is green? Did reality match the plan? Adjust tomorrow accordingly.
 6. **After a week of consistency**, the app will nudge you to stack your next habit.
 
 ### Things to know
 - **Local-first.** Everything is stored in your browser's `localStorage` and works fully offline with no account.
 - **Optional cloud sync.** If the deployment has Firebase configured, a *Sign in with Google* button appears — signing in syncs your habits, plans, and tracked time across devices, live. On first sign-in, local and cloud data are merged so no progress is lost on either side.
+- **Safe sign-out.** The app first flushes the latest activity switch, then removes signed-in data from that browser while keeping the cloud copy. If the final sync cannot complete, the local copy is kept to avoid data loss.
 - Without sign-in, data is **per-browser, per-device**, and clearing browser data erases it.
 
 ## Enabling cloud sync (for your own deployment)
@@ -95,8 +97,10 @@ Then open `http://localhost:4173`.
 index.html         # markup for all three tabs + modals
 styles.css         # all styling, one file
 app.js             # state, localStorage persistence, and all logic
+state-merge.js     # deterministic cross-tab and cross-device state merging
 firebase-config.js # optional Firebase config (null = local-only mode)
 sync.js            # Google sign-in + Firestore cross-device sync
+tests/              # merge and simultaneous-switch regression tests
 ```
 
 ## Roadmap / Ideas

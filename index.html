@@ -92,7 +92,7 @@
   <main id="tab-tracker" class="tab-panel">
     <section class="card">
       <h2>Track an activity</h2>
-      <p class="hint">Tracking never stops — to end an activity, start the next one. Even downtime counts: that's the point.</p>
+      <p class="hint">Tracking is continuous: starting your next activity ends the previous one. Track downtime or breaks too, so every part of the day has a place.</p>
       <form id="track-form" class="track-form">
         <input type="text" id="track-name" placeholder="e.g. Watching YouTube" maxlength="80" required>
         <select id="track-label">
@@ -240,7 +240,8 @@
   </div>
 
   <script src="firebase-config.js"></script>
-  <script src="app.js"></script>
-  <script type="module" src="sync.js"></script>
+  <script src="state-merge.js?v=3"></script>
+  <script src="app.js?v=3"></script>
+  <script type="module" src="sync.js?v=3"></script>
 </body>
 </html>

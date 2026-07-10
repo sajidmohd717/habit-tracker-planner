@@ -22,6 +22,9 @@ function load() {
   } catch (e) { /* corrupted storage — start fresh */ }
   if (!s) s = { habits: [], tasksByDate: {} };
   if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
+  if (!s.tasksByDate) s.tasksByDate = {};
+  if (!s.deleted) s.deleted = { habits: {}, tasks: {}, entries: {} };
+  for (const kind of ["habits", "tasks", "entries"]) if (!s.deleted[kind]) s.deleted[kind] = {};
   for (const h of s.habits) if (!h.checkins) h.checkins = []; // per-day history for the heatmap
   if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
   normalizeRunning(s);
@@ -31,6 +34,56 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   window.dispatchEvent(new Event("state-saved")); // sync.js mirrors to the cloud when signed in
 }
+
+function touch(item, at = Date.now()) {
+  item.updatedAt = Math.max((item.updatedAt || 0) + 1, at);
+  return item;
+}
+
+function rememberDeletion(kind, id) {
+  state.deleted ??= { habits: {}, tasks: {}, entries: {} };
+  state.deleted[kind] ??= {};
+  state.deleted[kind][id] = Date.now();
+}
+
+const emptyState = window.__emptyState;
+const stableStringify = window.__stableStringify;
+const mergeStates = window.__mergeStates;
+
+function adoptExternalState(next, persist = false) {
+  state = next;
+  normalizeRunning(state);
+  if (persist) save();
+  renderHabits();
+  renderTimeline();
+  renderTracker();
+}
+
+function clearLocalStateAfterSignOut() {
+  state = emptyState();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  renderHabits();
+  renderTimeline();
+  renderTracker();
+}
+
+window.__adoptExternalState = adoptExternalState;
+window.__clearLocalStateAfterSignOut = clearLocalStateAfterSignOut;
+
+window.addEventListener("storage", event => {
+  if (event.key === "opb-signed-out") {
+    clearLocalStateAfterSignOut();
+    return;
+  }
+  if (event.key !== STORAGE_KEY || !event.newValue) return;
+  try {
+    const incoming = JSON.parse(event.newValue);
+    const merged = mergeStates(state, incoming);
+    adoptExternalState(merged, stableStringify(merged) !== stableStringify(incoming));
+  } catch (error) {
+    console.error("Could not apply an update from another tab:", error);
+  }
+});
 
 /* ---------- date helpers ---------- */
 function todayKey() {
@@ -64,6 +117,7 @@ function fmtDuration(min) {
 function reconcileHabits() {
   const today = todayKey();
   const messages = [];
+  let changed = false;
   for (const h of state.habits) {
     if (!h.lastCheckin) continue; // never checked in — nothing to break yet
     const gap = daysBetween(h.lastCheckin, today);
@@ -73,6 +127,8 @@ function reconcileHabits() {
       h.freezes -= missed;
       // pretend the streak carried through the missed days
       h.lastCheckin = today === h.lastCheckin ? h.lastCheckin : addDays(h.lastCheckin, missed);
+      touch(h);
+      changed = true;
       messages.push(`🧊 Used ${missed} streak freeze${missed > 1 ? "s" : ""} to protect "${h.name}" — your ${h.streak}-day streak is safe!`);
     } else {
       messages.push(`💔 Streak for "${h.name}" reset (missed ${missed} day${missed > 1 ? "s" : ""}). Best streak stays at ${Math.max(h.bestStreak, h.streak)} days — start again today!`);
@@ -81,9 +137,11 @@ function reconcileHabits() {
       h.freezes = 0;
       h.lastFreezeAward = 0;
       h.lastCheckin = null;
+      touch(h);
+      changed = true;
     }
   }
-  save();
+  if (changed) save();
   const box = document.getElementById("freeze-notice");
   if (messages.length) {
     box.innerHTML = messages.join("<br>");
@@ -102,7 +160,7 @@ function habitCreatedToday() {
 
 function addHabit(name, note) {
   if (habitCreatedToday()) return; // one new habit per day — that's the 1%
-  state.habits.push({
+  state.habits.push(touch({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name,
     note: note || "",
@@ -113,7 +171,7 @@ function addHabit(name, note) {
     freezes: 0,
     lastFreezeAward: 0,
     lastCheckin: null,
-  });
+  }));
   save();
   renderHabits();
 }
@@ -149,6 +207,7 @@ function doCheckin(h) {
     if (h.freezes < MAX_FREEZES) h.freezes += 1;
     h.lastFreezeAward = h.streak;
   }
+  touch(h);
   save();
   renderHabits();
 }
@@ -157,6 +216,7 @@ function deleteHabit(id) {
   const h = state.habits.find(x => x.id === id);
   if (!h) return;
   if (!confirm(`Delete habit "${h.name}"? Your streak history for it will be lost.`)) return;
+  rememberDeletion("habits", id);
   state.habits = state.habits.filter(x => x.id !== id);
   save();
   renderHabits();
@@ -188,6 +248,7 @@ function editHabitNote(id) {
     const newNote = ta.value.trim();
     if (newNote !== h.note) delete h.showNoteOnCheckin; // fresh reasons re-enable the check-in gate
     h.note = newNote;
+    touch(h);
     save();
     renderHabits();
   };
@@ -335,19 +396,21 @@ function todaysTasks() {
 function addPlannedTask({ name, durMin, startMin, before, after }) {
   const tasks = todaysTasks();
   const gid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  if (before) tasks.push({ id: gid + "-b", name: before.label, startMin: startMin - before.min, durMin: before.min, aux: true, done: false });
-  tasks.push({ id: gid + "-m", name, startMin, durMin, aux: false, done: false });
-  if (after) tasks.push({ id: gid + "-a", name: after.label, startMin: startMin + durMin, durMin: after.min, aux: true, done: false });
+  const now = Date.now();
+  if (before) tasks.push(touch({ id: gid + "-b", name: before.label, startMin: startMin - before.min, durMin: before.min, aux: true, done: false }, now));
+  tasks.push(touch({ id: gid + "-m", name, startMin, durMin, aux: false, done: false }, now));
+  if (after) tasks.push(touch({ id: gid + "-a", name: after.label, startMin: startMin + durMin, durMin: after.min, aux: true, done: false }, now));
   save();
   renderTimeline();
 }
 
 function toggleTaskDone(id) {
   const t = todaysTasks().find(x => x.id === id);
-  if (t) { t.done = !t.done; save(); renderTimeline(); }
+  if (t) { t.done = !t.done; touch(t); save(); renderTimeline(); }
 }
 function deleteTask(id) {
   const key = todayKey();
+  rememberDeletion("tasks", id);
   state.tasksByDate[key] = todaysTasks().filter(x => x.id !== id);
   save();
   renderTimeline();
@@ -504,34 +567,39 @@ function runningEntry() {
 function normalizeRunning(s) {
   const running = s.entries.filter(e => e.end === null).sort((a, b) => a.start - b.start);
   for (let i = 0; i < running.length - 1; i++) {
-    running[i].end = Math.max(running[i].start + 1000, running[i + 1].start);
+    running[i].end = Math.max(running[i].start, running[i + 1].start);
   }
 }
 
 function startActivity(name, label) {
-  endRunning(); // switching is the only way to end an entry — tracking never stops
-  state.entries.push({
+  const now = Date.now();
+  // End + start is one atomic local transition. Other tabs/devices never see
+  // the misleading in-between state where nothing is running.
+  endRunning(now, false);
+  state.entries.push(touch({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name, label,
-    start: Date.now(),
+    start: now,
     end: null,
-  });
+  }, now));
   save();
   renderTracker();
 }
 
 // internal only — no UI stop button exists; called when a new activity starts.
 // Ends every running entry, not just the newest, so duplicates can't linger.
-function endRunning() {
+function endRunning(at = Date.now(), persist = true) {
   const running = state.entries.filter(e => e.end === null);
   if (!running.length) return;
   normalizeRunning(state); // closes all but the newest
   const r = runningEntry();
-  r.end = Math.max(r.start + 1000, Date.now());
-  save();
+  r.end = Math.max(r.start, at);
+  touch(r, at);
+  if (persist) save();
 }
 
 function deleteEntry(id) {
+  rememberDeletion("entries", id);
   state.entries = state.entries.filter(e => e.id !== id);
   save();
   renderTracker();
@@ -704,7 +772,7 @@ function closeCheck() {
 
 document.getElementById("check-still").addEventListener("click", () => {
   const r = checkTarget();
-  if (r) { r.lastCheckAck = Date.now(); save(); }
+  if (r) { r.lastCheckAck = Date.now(); touch(r, r.lastCheckAck); save(); }
   closeCheck();
 });
 
@@ -740,12 +808,13 @@ document.getElementById("fix-save").addEventListener("click", () => {
   let ts = switchAt.getTime();
   if (ts <= r.start) ts = r.start + 60000; // keep at least a minute on the old entry
   r.end = ts;
-  state.entries.push({
+  touch(r);
+  state.entries.push(touch({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name, label,
     start: ts,
     end: null,
-  });
+  }));
   save();
   renderTracker();
   closeCheck();
@@ -964,7 +1033,7 @@ document.getElementById("reset-account-btn").addEventListener("click", () => {
     alert("Not reset — you must type exactly: reset");
     return;
   }
-  state = { habits: [], tasksByDate: {}, entries: [], resetAt: Date.now() };
+  state = { ...emptyState(), resetAt: Date.now() };
   save(); // also pushes the empty state to the cloud when signed in
   renderHabits();
   renderTimeline();
