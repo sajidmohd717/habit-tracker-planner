@@ -1,7 +1,7 @@
 (function exposeStateMerge(root) {
   function emptyState() {
     return {
-      habits: [], tasksByDate: {}, entries: [], resetAt: 0,
+      habits: [], tasksByDate: {}, entries: [], categories: [], resetAt: 0,
       deleted: { habits: {}, tasks: {}, entries: {} },
     };
   }
@@ -57,6 +57,7 @@
       return {
         ...emptyState(), ...winner,
         habits: (winner.habits || []).map(h => ({ ...h, checkins: [...(h.checkins || [])] })),
+        categories: (winner.categories || []).map(category => ({ ...category })),
         tasksByDate: Object.fromEntries(Object.entries(winner.tasksByDate || {}).map(([day, tasks]) => [day, tasks.map(t => ({ ...t }))])),
         entries: (winner.entries || []).map(e => ({ ...e })),
         deleted: {
@@ -88,6 +89,13 @@
     result.habits = [...habits.values()]
       .filter(h => !deleted.habits[h.id])
       .sort((x, y) => (x.createdAt || "").localeCompare(y.createdAt || "") || x.id.localeCompare(y.id));
+
+    const categories = new Map();
+    for (const category of [...(a.categories || []), ...(b.categories || [])]) {
+      categories.set(category.id, newerCopy(categories.get(category.id), category));
+    }
+    result.categories = [...categories.values()]
+      .sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0) || x.id.localeCompare(y.id));
 
     const entries = new Map();
     for (const entry of [...(a.entries || []), ...(b.entries || [])]) {

@@ -14,7 +14,7 @@ This project was inspired by the idea of **improving 1% every day** (from *Atomi
 
 1. **Habits** — long-term compounding. Build one small habit at a time and protect the streak.
 2. **Planner** — intention. Most to-do lists fail because tasks have no time attached. Here, every task needs a duration and a start time — including the travel/prep/cleanup time people always forget.
-3. **Tracker** — reality. Days disappear and we don't know where they went. Track activities Toggl-style and label them honestly (necessary → bad) to see the truth about your day.
+3. **Tracker** — reality. Days disappear and we don't know where they went. Track activities continuously and organize them into meaningful parts of life such as work, family, studies, hobbies, entertainment, or time wasters.
 
 Plan the day, live the day, then compare intention against reality — all in one place.
 
@@ -32,11 +32,12 @@ Plan the day, live the day, then compare intention against reality — all in on
 - Check off blocks as you complete them, or remove them. Each day starts with a fresh plan.
 
 ### ⏱ Time Tracker
-- Start an activity with one of four labels: **Necessary · Normal · Unnecessary · Bad**.
+- Organize activities with **custom categories**. Add, rename, recolor, archive, and restore categories as your life changes.
+- Start with practical defaults—**Work · Family · Studies · Personal · Entertainment · Time wasters**—or make the system entirely your own.
 - **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
-- **"Where your time went today"** — a color-coded breakdown bar with per-label totals and percentages.
+- **"Where your time went today"** — a color-coded breakdown with totals and percentages for every category.
 - **Recent activity chips** — restart a past activity with one tap.
 
 ## User Guide
@@ -97,6 +98,7 @@ Then open `http://localhost:4173`.
 index.html         # markup for all three tabs + modals
 styles.css         # all styling, one file
 app.js             # state, localStorage persistence, and all logic
+category-model.js  # category defaults and backward-compatible data migration
 state-merge.js     # deterministic cross-tab and cross-device state merging
 firebase-config.js # optional Firebase config (null = local-only mode)
 sync.js            # Google sign-in + Firestore cross-device sync

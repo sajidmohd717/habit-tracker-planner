@@ -73,6 +73,18 @@ test("the newest task state can be checked or unchecked", () => {
   assert.equal(mergeStates(fresh, old).tasksByDate.today[0].done, false);
 });
 
+test("category renames, colors, and archive state use the latest revision", () => {
+  const old = emptyState(), fresh = emptyState();
+  old.categories = [{ id: "work", name: "Work", color: "#112233", archived: false, updatedAt: 100 }];
+  fresh.categories = [{ id: "work", name: "Deep work", color: "#445566", archived: true, updatedAt: 200 }];
+  const category = mergeStates(old, fresh).categories[0];
+  assert.deepEqual(
+    { name: category.name, color: category.color, archived: category.archived },
+    { name: "Deep work", color: "#445566", archived: true },
+  );
+  assert.equal(stableStringify(mergeStates(old, fresh)), stableStringify(mergeStates(fresh, old)));
+});
+
 test("legacy records without revision metadata remain readable", () => {
   const legacy = { habits: [], tasksByDate: {}, entries: [{ id: "legacy", start: 1, end: 2 }], resetAt: 0 };
   assert.equal(mergeStates(legacy, emptyState()).entries.length, 1);

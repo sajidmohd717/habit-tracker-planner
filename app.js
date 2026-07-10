@@ -7,6 +7,7 @@ const FREEZE_EVERY = 7; // earn a freeze every 7-day streak milestone
 const DAY_START_HOUR = 6;  // timeline shows 6:00 – 23:00
 const DAY_END_HOUR = 23;
 const PX_PER_ROW = 56;
+const ensureCategoryState = window.__ensureCategoryState;
 // zoom: 0 = 1-hour rows, 1 = 30-minute rows (device preference, not synced)
 let timelineZoom = Number(localStorage.getItem("opb-zoom")) || 0;
 function rowMinutes() { return timelineZoom === 1 ? 30 : 60; }
@@ -27,6 +28,7 @@ function load() {
   for (const kind of ["habits", "tasks", "entries"]) if (!s.deleted[kind]) s.deleted[kind] = {};
   for (const h of s.habits) if (!h.checkins) h.checkins = []; // per-day history for the heatmap
   if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
+  ensureCategoryState(s);
   normalizeRunning(s);
   return s;
 }
@@ -52,15 +54,18 @@ const mergeStates = window.__mergeStates;
 
 function adoptExternalState(next, persist = false) {
   state = next;
+  ensureCategoryState(state);
   normalizeRunning(state);
   if (persist) save();
   renderHabits();
   renderTimeline();
   renderTracker();
+  if (!document.getElementById("categories-overlay").classList.contains("hidden")) renderCategoryManager();
 }
 
 function clearLocalStateAfterSignOut() {
   state = emptyState();
+  ensureCategoryState(state);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   renderHabits();
   renderTimeline();
@@ -547,10 +552,44 @@ setInterval(() => {
    TIME TRACKER
    ============================================================ */
 
-const LABELS = ["necessary", "normal", "unnecessary", "bad"];
-const LABEL_TITLES = { necessary: "Necessary", normal: "Normal", unnecessary: "Unnecessary", bad: "Bad" };
+const FALLBACK_CATEGORY = { id: "uncategorized", name: "Uncategorized", color: "#778196", archived: true };
 
-// entry: { id, name, label, start (ms), end (ms|null) }
+function categoryById(id) {
+  return state.categories.find(category => category.id === id) || FALLBACK_CATEGORY;
+}
+
+function activeCategories() {
+  return state.categories.filter(category => !category.archived);
+}
+
+function categorySignature() {
+  return state.categories.map(category =>
+    `${category.id}:${category.name}:${category.color}:${category.archived}`).join("|");
+}
+
+function refreshCategorySelect(select, preferredId) {
+  const categories = activeCategories();
+  const signature = categorySignature();
+  const previous = preferredId || select.value;
+  if (select.dataset.categorySignature !== signature) {
+    select.innerHTML = "";
+    for (const category of categories) {
+      const option = document.createElement("option");
+      option.value = category.id;
+      option.textContent = category.name;
+      select.appendChild(option);
+    }
+    select.dataset.categorySignature = signature;
+  }
+  if (categories.some(category => category.id === previous)) select.value = previous;
+  else if (categories.length) select.value = categories[0].id;
+}
+
+function applyCategoryColor(element, category) {
+  element.style.setProperty("--category-color", category.color);
+}
+
+// entry: { id, name, categoryId, start (ms), end (ms|null) }
 // Always the NEWEST running entry — duplicates from sync races must not
 // steer the tracking bar or the "are you still on this?" check.
 function runningEntry() {
@@ -571,14 +610,16 @@ function normalizeRunning(s) {
   }
 }
 
-function startActivity(name, label) {
+function startActivity(name, categoryId) {
+  const category = activeCategories().find(item => item.id === categoryId) || activeCategories()[0];
+  if (!category) return;
   const now = Date.now();
   // End + start is one atomic local transition. Other tabs/devices never see
   // the misleading in-between state where nothing is running.
   endRunning(now, false);
   state.entries.push(touch({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name, label,
+    name, categoryId: category.id,
     start: now,
     end: null,
   }, now));
@@ -617,7 +658,7 @@ function entriesToday() {
 }
 
 function fmtElapsed(ms) {
-  const s = Math.floor(ms / 1000);
+  const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   if (h) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   return `${m}:${String(sec).padStart(2, "0")}`;
@@ -629,48 +670,59 @@ function fmtClock(ms) {
 
 function renderTracker() {
   const running = runningEntry();
+  refreshCategorySelect(document.getElementById("track-category"));
+  refreshCategorySelect(document.getElementById("fix-label"));
 
   // persistent bar (visible on every tab)
   const bar = document.getElementById("running-bar");
   bar.classList.toggle("hidden", !running);
   if (running) {
+    const category = categoryById(running.categoryId);
     document.getElementById("running-bar-name").textContent = running.name;
+    document.getElementById("running-bar-category").textContent = category.name;
     document.getElementById("running-bar-elapsed").textContent = fmtElapsed(Date.now() - running.start);
+    applyCategoryColor(bar, category);
   }
 
-  // recent chips: latest unique name+label combos, running one excluded
+  // recent chips: latest unique activity/category combos, running one excluded
   const chipsBox = document.getElementById("recent-chips");
   chipsBox.innerHTML = "";
   const seen = new Set();
   const recents = [];
   for (let i = state.entries.length - 1; i >= 0 && recents.length < 6; i--) {
     const e = state.entries[i];
-    const key = e.name.toLowerCase() + "|" + e.label;
+    const category = categoryById(e.categoryId);
+    if (category.archived) continue;
+    const key = e.name.toLowerCase() + "|" + e.categoryId;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (running && running.name.toLowerCase() === e.name.toLowerCase() && running.label === e.label) continue;
+    if (running && running.name.toLowerCase() === e.name.toLowerCase() && running.categoryId === e.categoryId) continue;
     recents.push(e);
   }
-  // starter suggestions for bunching mundane stretches, until the user has their own recents
+  // Starter suggestions until the user has their own recent activities.
   const starters = [
-    { name: "Down time", label: "normal" },
-    { name: "Morning routine", label: "necessary" },
-    { name: "Sleep", label: "necessary" },
+    { name: "Down time", categoryId: "entertainment" },
+    { name: "Morning routine", categoryId: "personal" },
+    { name: "Sleep", categoryId: "personal" },
   ];
   for (const s of starters) {
     if (recents.length >= 6) break;
-    const key = s.name.toLowerCase() + "|" + s.label;
+    if (categoryById(s.categoryId).archived) continue;
+    const key = s.name.toLowerCase() + "|" + s.categoryId;
     if (seen.has(key)) continue;
-    if (running && running.name.toLowerCase() === s.name.toLowerCase() && running.label === s.label) continue;
+    if (running && running.name.toLowerCase() === s.name.toLowerCase() && running.categoryId === s.categoryId) continue;
     seen.add(key);
     recents.push(s);
   }
   for (const e of recents) {
+    const category = categoryById(e.categoryId);
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = `chip label-${e.label}`;
+    chip.className = "chip";
     chip.dataset.restartName = e.name;
-    chip.dataset.restartLabel = e.label;
+    chip.dataset.restartCategory = e.categoryId;
+    chip.title = category.name;
+    applyCategoryColor(chip, category);
     chip.innerHTML = `<span class="label-dot"></span>`;
     chip.append("▶ " + e.name);
     chipsBox.appendChild(chip);
@@ -684,54 +736,135 @@ function renderTracker() {
   for (const e of today) {
     const isRunning = e.end === null;
     const dur = (isRunning ? Date.now() : e.end) - e.start;
+    const category = categoryById(e.categoryId);
     const row = document.createElement("div");
     row.className = "entry-row";
+    applyCategoryColor(row, category);
     row.innerHTML = `
-      <span class="entry-label-dot label-${e.label}" title="${LABEL_TITLES[e.label]}"></span>
-      <span class="entry-name"></span>
+      <span class="entry-label-dot"></span>
+      <span class="entry-main"><span class="entry-name"></span><span class="entry-category"></span></span>
       <span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span>
       <span class="entry-dur">${fmtElapsed(dur)}</span>
       ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}`;
     const nameEl = row.querySelector(".entry-name");
     nameEl.textContent = e.name + " ";
     if (isRunning) nameEl.innerHTML += `<span class="entry-running">● tracking</span>`;
+    row.querySelector(".entry-category").textContent = category.name;
     list.appendChild(row);
   }
 
-  // summary: total per label
+  // Summary: total per category.
   const totals = {};
   let grand = 0;
   const dayStart = dayStartMs();
   for (const e of today) {
     // only count the portion that falls within today
-    const dur = (e.end === null ? Date.now() : e.end) - Math.max(e.start, dayStart);
-    totals[e.label] = (totals[e.label] || 0) + dur;
+    const dur = Math.max(0, (e.end === null ? Date.now() : e.end) - Math.max(e.start, dayStart));
+    totals[e.categoryId] = (totals[e.categoryId] || 0) + dur;
     grand += dur;
   }
   const barEl = document.getElementById("summary-bar");
   const legend = document.getElementById("summary-legend");
+  document.getElementById("summary-total").textContent = fmtElapsed(grand);
   document.getElementById("summary-empty").classList.toggle("hidden", grand > 0);
   barEl.classList.toggle("hidden", grand === 0);
   barEl.innerHTML = "";
   legend.innerHTML = "";
   if (grand > 0) {
-    for (const label of LABELS) {
-      if (!totals[label]) continue;
+    const ranked = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+    for (const [categoryId, totalMs] of ranked) {
+      const category = categoryById(categoryId);
+      const percent = Math.round((totalMs / grand) * 100);
       const seg = document.createElement("div");
-      seg.className = `summary-seg label-${label}`;
-      seg.style.flex = String(totals[label] / grand);
-      seg.title = `${LABEL_TITLES[label]}: ${fmtElapsed(totals[label])}`;
+      seg.className = "summary-seg";
+      seg.style.flex = String(totalMs / grand);
+      seg.style.background = category.color;
+      seg.title = `${category.name}: ${fmtElapsed(totalMs)}`;
       barEl.appendChild(seg);
+
       const item = document.createElement("span");
-      item.className = `legend-item label-${label}`;
-      item.innerHTML = `<span class="label-dot"></span>${LABEL_TITLES[label]}: <strong>${fmtElapsed(totals[label])}</strong> (${Math.round((totals[label] / grand) * 100)}%)`;
+      item.className = "legend-item";
+      applyCategoryColor(item, category);
+      item.innerHTML = `<span class="label-dot"></span><span class="legend-copy"><span class="legend-name"></span><strong>${fmtElapsed(totalMs)}</strong></span><span class="legend-percent">${percent}%</span>`;
+      item.querySelector(".legend-name").textContent = category.name;
       legend.appendChild(item);
     }
-    const total = document.createElement("span");
-    total.className = "legend-item";
-    total.innerHTML = `Total tracked: <strong>${fmtElapsed(grand)}</strong>`;
-    legend.appendChild(total);
   }
+}
+
+function renderCategoryManager() {
+  const list = document.getElementById("category-list");
+  list.innerHTML = "";
+  const ordered = [...state.categories].sort((a, b) =>
+    Number(a.archived) - Number(b.archived) || (a.createdAt || 0) - (b.createdAt || 0));
+  for (const category of ordered) {
+    const row = document.createElement("div");
+    row.className = "category-row" + (category.archived ? " archived" : "");
+    row.dataset.categoryId = category.id;
+    row.innerHTML = `
+      <input type="color" class="category-color-input" aria-label="Category color">
+      <input type="text" class="category-name-input" maxlength="32" aria-label="Category name">
+      <span class="category-state"></span>
+      <button type="button" class="btn category-save-btn" data-category-save>Save</button>
+      <button type="button" class="btn ghost category-archive-btn" data-category-archive></button>`;
+    row.querySelector(".category-color-input").value = category.color;
+    row.querySelector(".category-name-input").value = category.name;
+    row.querySelector(".category-state").textContent = category.archived ? "Archived" : "Active";
+    row.querySelector("[data-category-archive]").textContent = category.archived ? "Restore" : "Archive";
+    list.appendChild(row);
+  }
+}
+
+function saveCategoryRow(row) {
+  const category = state.categories.find(item => item.id === row.dataset.categoryId);
+  if (!category) return;
+  const name = row.querySelector(".category-name-input").value.trim();
+  const color = row.querySelector(".category-color-input").value;
+  if (!name) { alert("Give the category a name."); return; }
+  if (state.categories.some(item => item.id !== category.id && item.name.toLowerCase() === name.toLowerCase())) {
+    alert("A category with that name already exists.");
+    return;
+  }
+  category.name = name.slice(0, 32);
+  category.color = /^#[0-9a-f]{6}$/i.test(color) ? color : category.color;
+  touch(category);
+  save();
+  renderCategoryManager();
+  renderTracker();
+}
+
+function toggleCategoryArchive(id) {
+  const category = state.categories.find(item => item.id === id);
+  if (!category) return;
+  if (!category.archived && activeCategories().length === 1) {
+    alert("Keep at least one active category for tracking.");
+    return;
+  }
+  category.archived = !category.archived;
+  touch(category);
+  save();
+  renderCategoryManager();
+  renderTracker();
+}
+
+function addCategory(name, color) {
+  if (state.categories.length >= 20) {
+    alert("You can have up to 20 categories. Rename or restore an existing category instead.");
+    return false;
+  }
+  if (state.categories.some(category => category.name.toLowerCase() === name.toLowerCase())) {
+    alert("A category with that name already exists.");
+    return false;
+  }
+  const now = Date.now();
+  state.categories.push(touch({
+    id: "cat-" + now.toString(36) + Math.random().toString(36).slice(2, 6),
+    name: name.slice(0, 32), color, archived: false, createdAt: now,
+  }, now));
+  save();
+  renderCategoryManager();
+  renderTracker();
+  return true;
 }
 
 // live tick while a timer runs (updates bar, entry durations, summary)
@@ -799,7 +932,7 @@ document.getElementById("fix-save").addEventListener("click", () => {
   if (!r) { closeCheck(); return; } // entry changed under us — don't split the wrong one
   const name = document.getElementById("fix-name").value.trim();
   if (!name) { alert("What have you been doing? A rough answer is fine."); return; }
-  const label = document.getElementById("fix-label").value;
+  const categoryId = document.getElementById("fix-label").value;
   const [hh, mm] = document.getElementById("fix-time").value.split(":").map(Number);
   // interpret the time as the most recent occurrence of HH:MM
   let switchAt = new Date();
@@ -811,7 +944,7 @@ document.getElementById("fix-save").addEventListener("click", () => {
   touch(r);
   state.entries.push(touch({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name, label,
+    name, categoryId,
     start: ts,
     end: null,
   }));
@@ -976,13 +1109,37 @@ document.getElementById("track-form").addEventListener("submit", e => {
   e.preventDefault();
   const name = document.getElementById("track-name").value.trim();
   if (!name) return;
-  startActivity(name, document.getElementById("track-label").value);
+  startActivity(name, document.getElementById("track-category").value);
   document.getElementById("track-name").value = "";
 });
 
 document.getElementById("recent-chips").addEventListener("click", e => {
   const chip = e.target.closest("[data-restart-name]");
-  if (chip) startActivity(chip.dataset.restartName, chip.dataset.restartLabel);
+  if (chip) startActivity(chip.dataset.restartName, chip.dataset.restartCategory);
+});
+
+document.getElementById("manage-categories-btn").addEventListener("click", () => {
+  renderCategoryManager();
+  document.getElementById("categories-overlay").classList.remove("hidden");
+});
+document.getElementById("categories-close").addEventListener("click", () =>
+  document.getElementById("categories-overlay").classList.add("hidden"));
+document.getElementById("categories-overlay").addEventListener("click", event => {
+  if (event.target.id === "categories-overlay") event.target.classList.add("hidden");
+});
+document.getElementById("category-list").addEventListener("click", event => {
+  const row = event.target.closest(".category-row");
+  if (!row) return;
+  if (event.target.closest("[data-category-save]")) saveCategoryRow(row);
+  if (event.target.closest("[data-category-archive]")) toggleCategoryArchive(row.dataset.categoryId);
+});
+document.getElementById("category-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const nameInput = document.getElementById("category-name");
+  const colorInput = document.getElementById("category-color");
+  const name = nameInput.value.trim();
+  if (!name) return;
+  if (addCategory(name, colorInput.value)) nameInput.value = "";
 });
 
 document.getElementById("entry-list").addEventListener("click", e => {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <header class="app-header">
@@ -28,7 +28,10 @@
   <!-- persistent running-timer bar, visible on every tab -->
   <div id="running-bar" class="running-bar hidden">
     <span class="pulse-dot"></span>
-    <span id="running-bar-name"></span>
+    <span class="running-copy">
+      <span id="running-bar-name"></span>
+      <span id="running-bar-category" class="running-category"></span>
+    </span>
     <span id="running-bar-elapsed" class="running-elapsed">0:00</span>
     <button id="running-bar-switch" class="btn switch-btn">⇄ Switch</button>
   </div>
@@ -90,35 +93,67 @@
 
   <!-- ============ TRACKER TAB ============ -->
   <main id="tab-tracker" class="tab-panel">
-    <section class="card">
-      <h2>Track an activity</h2>
-      <p class="hint">Tracking is continuous: starting your next activity ends the previous one. Track downtime or breaks too, so every part of the day has a place.</p>
+    <section class="tracker-hero">
+      <div>
+        <span class="eyebrow">Your time, made visible</span>
+        <h2>Where is your day going?</h2>
+        <p>Switch activities as you move through the day. Every switch closes the previous activity automatically.</p>
+      </div>
+      <button id="manage-categories-btn" class="btn category-manage-btn">Manage categories</button>
+    </section>
+
+    <section class="card tracker-compose-card">
+      <div class="section-kicker">Start your next activity</div>
       <form id="track-form" class="track-form">
         <input type="text" id="track-name" placeholder="e.g. Watching YouTube" maxlength="80" required>
-        <select id="track-label">
-          <option value="necessary">Necessary</option>
-          <option value="normal" selected>Normal</option>
-          <option value="unnecessary">Unnecessary</option>
-          <option value="bad">Bad</option>
-        </select>
-        <button type="submit" class="btn primary">▶ Start</button>
+        <select id="track-category" aria-label="Activity category"></select>
+        <button type="submit" class="btn primary tracker-start-btn">Start tracking</button>
       </form>
+      <div class="recent-label">Quick restart</div>
       <div id="recent-chips" class="chips"></div>
     </section>
 
-    <section class="card">
-      <h2>Where your time went today</h2>
+    <section class="card tracker-insights-card">
+      <div class="insights-head">
+        <div>
+          <span class="section-kicker">Today's balance</span>
+          <h2>Time by category</h2>
+        </div>
+        <div class="tracked-total"><span>Total tracked</span><strong id="summary-total">0:00</strong></div>
+      </div>
       <div id="summary-bar" class="summary-bar hidden"></div>
       <div id="summary-legend" class="summary-legend"></div>
       <p id="summary-empty" class="empty-msg">Nothing tracked yet today. Start an activity and find out where your day goes.</p>
     </section>
 
-    <section class="card">
-      <h2>Today's entries</h2>
+    <section class="card tracker-entries-card">
+      <div class="entries-head">
+        <div><span class="section-kicker">Timeline</span><h2>Today's activities</h2></div>
+      </div>
       <div id="entry-list" class="entry-list"></div>
       <p id="entries-empty" class="empty-msg">No entries yet.</p>
     </section>
   </main>
+
+  <!-- ============ CATEGORY MANAGER MODAL ============ -->
+  <div id="categories-overlay" class="overlay hidden">
+    <div class="modal categories-modal">
+      <div class="modal-head">
+        <div>
+          <span class="section-kicker">Make it yours</span>
+          <h3>Activity categories</h3>
+        </div>
+        <button id="categories-close" class="btn ghost" aria-label="Close category manager">✕</button>
+      </div>
+      <p class="category-help">Rename and recolor categories anytime. Archive categories you no longer use—past activities keep their history.</p>
+      <div id="category-list" class="category-list"></div>
+      <form id="category-form" class="category-add-form">
+        <input type="color" id="category-color" value="#5B5BD6" aria-label="New category color">
+        <input type="text" id="category-name" maxlength="32" placeholder="New category name" required>
+        <button type="submit" class="btn primary">Add category</button>
+      </form>
+    </div>
+  </div>
 
   <!-- ============ TASK WIZARD MODAL ============ -->
   <div id="wizard-overlay" class="overlay hidden">
@@ -222,13 +257,8 @@
         <p class="hint">No worries — rough guesses are fine. The point isn't exact timings, it's knowing roughly where your time went so you can spend it wisely. Don't get distracted chasing accuracy.</p>
         <label for="fix-name">What have you been doing instead?</label>
         <input type="text" id="fix-name" placeholder="e.g. Out with friends" maxlength="80">
-        <label for="fix-label" class="fix-label-row">How would you label it?</label>
-        <select id="fix-label">
-          <option value="necessary">Necessary</option>
-          <option value="normal" selected>Normal</option>
-          <option value="unnecessary">Unnecessary</option>
-          <option value="bad">Bad</option>
-        </select>
+        <label for="fix-label" class="fix-label-row">Which category fits best?</label>
+        <select id="fix-label"></select>
         <label for="fix-time" class="fix-label-row">Roughly when did you switch?</label>
         <input type="time" id="fix-time">
         <div class="modal-foot">
@@ -240,8 +270,9 @@
   </div>
 
   <script src="firebase-config.js"></script>
-  <script src="state-merge.js?v=3"></script>
-  <script src="app.js?v=3"></script>
-  <script type="module" src="sync.js?v=3"></script>
+  <script src="category-model.js?v=5"></script>
+  <script src="state-merge.js?v=5"></script>
+  <script src="app.js?v=5"></script>
+  <script type="module" src="sync.js?v=5"></script>
 </body>
 </html>
