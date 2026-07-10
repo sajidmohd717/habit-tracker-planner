@@ -18,6 +18,7 @@ function load() {
   } catch (e) { /* corrupted storage — start fresh */ }
   if (!s) s = { habits: [], tasksByDate: {} };
   if (!s.entries) s.entries = []; // time-tracker entries (migration for older saves)
+  for (const h of s.habits) if (!h.checkins) h.checkins = []; // per-day history for the heatmap
   if (!s.resetAt) s.resetAt = 0; // bumped on account reset so sync merges don't resurrect old data
   normalizeRunning(s);
   return s;
@@ -91,11 +92,17 @@ function addDays(key, n) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function habitCreatedToday() {
+  return state.habits.some(h => h.createdAt === todayKey());
+}
+
 function addHabit(name, note) {
+  if (habitCreatedToday()) return; // one new habit per day — that's the 1%
   state.habits.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name,
     note: note || "",
+    checkins: [],
     createdAt: todayKey(),
     streak: 0,
     bestStreak: 0,
@@ -131,6 +138,8 @@ function doCheckin(h) {
   h.streak += 1;
   h.bestStreak = Math.max(h.bestStreak, h.streak);
   h.lastCheckin = today;
+  if (!h.checkins) h.checkins = [];
+  if (!h.checkins.includes(today)) h.checkins.push(today);
   // earn a freeze at each 7-day milestone (max banked)
   if (h.streak > 0 && h.streak % FREEZE_EVERY === 0 && h.lastFreezeAward !== h.streak) {
     if (h.freezes < MAX_FREEZES) h.freezes += 1;
@@ -239,6 +248,73 @@ function renderHabits() {
   const nudge = document.getElementById("stack-nudge");
   const ready = state.habits.length > 0 && state.habits.every(h => h.streak >= FREEZE_EVERY);
   nudge.classList.toggle("hidden", !ready);
+
+  // one habit per day: lock the form once today's habit is planted
+  const locked = habitCreatedToday();
+  document.getElementById("habit-name").disabled = locked;
+  document.getElementById("habit-note").disabled = locked;
+  document.querySelector("#habit-form button").disabled = locked;
+  document.getElementById("habit-limit-msg").classList.toggle("hidden", !locked);
+
+  renderHeatmap();
+}
+
+/* ---------- journey heatmap ---------- */
+
+const HEATMAP_WEEKS = 16;
+
+function renderHeatmap() {
+  const card = document.getElementById("journey-card");
+  card.classList.toggle("hidden", state.habits.length === 0);
+  if (!state.habits.length) return;
+
+  // per-day data: check-in counts and habits created
+  const days = {};
+  const dayInfo = key => (days[key] ??= { count: 0, created: [] });
+  let firstDay = todayKey();
+  for (const h of state.habits) {
+    if (h.createdAt) {
+      dayInfo(h.createdAt).created.push(h.name);
+      if (h.createdAt < firstDay) firstDay = h.createdAt;
+    }
+    for (const d of h.checkins || []) {
+      dayInfo(d).count++;
+      if (d < firstDay) firstDay = d;
+    }
+  }
+
+  const dayNumber = daysBetween(firstDay, todayKey()) + 1;
+  document.getElementById("journey-day").textContent = `— Day ${dayNumber}`;
+
+  // grid: HEATMAP_WEEKS full weeks ending with the current week, columns = weeks
+  const grid = document.getElementById("heatmap");
+  grid.innerHTML = "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const gridStart = new Date(today);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay() - (HEATMAP_WEEKS - 1) * 7);
+  const totalCells = HEATMAP_WEEKS * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const cell = document.createElement("span");
+    if (d > today) {
+      cell.className = "hm-cell future";
+    } else {
+      const info = days[key];
+      const c = info ? info.count : 0;
+      const level = c === 0 ? 0 : c === 1 ? 1 : c === 2 ? 2 : c <= 4 ? 3 : 4;
+      cell.className = `hm-cell l${level}` + (info && info.created.length ? " created" : "");
+      const label = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      let tip = `${label}: ${c} check-in${c === 1 ? "" : "s"}`;
+      if (info && info.created.length) tip += ` · 🌱 planted "${info.created.join('", "')}"`;
+      cell.title = tip;
+    }
+    grid.appendChild(cell);
+  }
+  grid.scrollLeft = grid.scrollWidth; // keep the current week in view
 }
 
 /* ============================================================

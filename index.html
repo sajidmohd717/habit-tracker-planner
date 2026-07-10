@@ -48,6 +48,19 @@
         <textarea id="habit-note" rows="3" maxlength="1000" placeholder="Why do you want this? (optional note to your future self — the reasons you'll need on hard days)"></textarea>
         <button type="submit" class="btn primary">Add habit</button>
       </form>
+      <p id="habit-limit-msg" class="hint hidden">🌱 You've planted today's habit. One per day — that's the 1%. Come back tomorrow.</p>
+    </section>
+
+    <section id="journey-card" class="card hidden">
+      <h2>Your journey <span id="journey-day" class="muted"></span></h2>
+      <div id="heatmap" class="heatmap"></div>
+      <div class="heatmap-legend">
+        <span class="muted">Less</span>
+        <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>
+        <span class="muted">More</span>
+        <span class="hm-cell l1 created" title="A habit was created that day"></span>
+        <span class="muted">= new habit planted</span>
+      </div>
     </section>
 
     <section id="habit-list" class="habit-list"></section>

@@ -140,6 +140,7 @@ function mergeStates(a, b) {
     habitMap.set(h.id, {
       ...older, ...newer,
       bestStreak: Math.max(h.bestStreak || 0, prev.bestStreak || 0),
+      checkins: [...new Set([...(h.checkins || []), ...(prev.checkins || [])])].sort(),
     });
   }
   merged.habits = [...habitMap.values()];

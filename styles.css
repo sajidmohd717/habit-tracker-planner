@@ -223,6 +223,39 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 #check-fix input[type="text"], #check-fix input[type="time"], #check-fix select { width: 100%; }
 .done-today { color: var(--success); font-weight: 600; font-size: 0.9rem; }
 
+/* ===== Journey heatmap ===== */
+.heatmap {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 13px);
+  grid-auto-columns: 13px;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.hm-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: #ebedf0;
+  display: inline-block;
+}
+.hm-cell.future { background: transparent; }
+.hm-cell.l0 { background: #ebedf0; }
+.hm-cell.l1 { background: #9be9a8; }
+.hm-cell.l2 { background: #40c463; }
+.hm-cell.l3 { background: #30a14e; }
+.hm-cell.l4 { background: #216e39; }
+.hm-cell.created { box-shadow: inset 0 0 0 2px var(--accent); }
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.78rem;
+}
+.heatmap-legend .muted { margin: 0 4px; }
+
 /* ===== Planner ===== */
 .planner-head { display: flex; justify-content: space-between; align-items: center; }
 .planner-head h2 { margin-bottom: 0; }
