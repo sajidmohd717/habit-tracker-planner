@@ -330,7 +330,7 @@ function todaysTasks() {
 // task: { id, name, startMin, durMin, aux: false|true, done }
 function addPlannedTask({ name, durMin, startMin, before, after }) {
   const tasks = todaysTasks();
-  const gid = Date.now().toString(36);
+  const gid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   if (before) tasks.push({ id: gid + "-b", name: before.label, startMin: startMin - before.min, durMin: before.min, aux: true, done: false });
   tasks.push({ id: gid + "-m", name, startMin, durMin, aux: false, done: false });
   if (after) tasks.push({ id: gid + "-a", name: after.label, startMin: startMin + durMin, durMin: after.min, aux: true, done: false });
@@ -406,6 +406,31 @@ function renderTimeline() {
     timeline.appendChild(row);
   }
 
+  // overlapping events share the width side-by-side (Google Calendar style):
+  // cluster mutually-overlapping blocks, then greedily assign columns
+  const clusters = [];
+  let cluster = null, clusterEnd = -1;
+  for (const t of tasks) { // already sorted by startMin
+    if (!cluster || t.startMin >= clusterEnd) {
+      cluster = [];
+      clusters.push(cluster);
+      clusterEnd = -1;
+    }
+    cluster.push(t);
+    clusterEnd = Math.max(clusterEnd, t.startMin + t.durMin);
+  }
+  const layout = new Map(); // task id -> { col, cols }
+  for (const c of clusters) {
+    const colEnds = []; // end time of the last block in each column
+    for (const t of c) {
+      let col = colEnds.findIndex(end => t.startMin >= end);
+      if (col === -1) { col = colEnds.length; colEnds.push(0); }
+      colEnds[col] = t.startMin + t.durMin;
+      layout.set(t.id, { col, cols: 0 });
+    }
+    for (const t of c) layout.get(t.id).cols = colEnds.length;
+  }
+
   const layer = document.createElement("div");
   layer.className = "blocks-layer";
   for (const t of tasks) {
@@ -415,6 +440,11 @@ function renderTimeline() {
     block.className = "time-block" + (t.aux ? " aux" : "") + (t.done ? " done" : "");
     block.style.top = `${top}px`;
     block.style.height = `${height}px`;
+    const { col, cols } = layout.get(t.id);
+    if (cols > 1) {
+      block.style.left = `${(col / cols) * 100}%`;
+      block.style.right = `${(1 - (col + 1) / cols) * 100}%`;
+    }
     block.innerHTML = `
       <div>
         <span class="block-title"></span>
