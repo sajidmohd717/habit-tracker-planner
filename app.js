@@ -218,7 +218,7 @@ function renderHabits() {
       <div class="habit-actions">
         ${doneToday
           ? `<span class="done-today">✓ Done today</span>`
-          : `<button class="btn success" data-checkin="${h.id}">Continue streak</button>`}
+          : `<button class="btn success" data-checkin="${h.id}">${h.streak === 0 && !h.lastCheckin ? "🌱 Start habit" : "Continue streak"}</button>`}
         <button class="btn ghost" data-delete="${h.id}" title="Delete habit">🗑</button>
       </div>`;
     card.querySelector(".habit-name").textContent = h.name;
