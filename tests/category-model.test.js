@@ -2,9 +2,7 @@ const assert = require("node:assert/strict");
 const { defaultCategories, ensureCategoryState } = require("../category-model.js");
 
 const defaults = defaultCategories();
-assert.deepEqual(defaults.map(category => category.name), [
-  "Work", "Family", "Studies", "Personal", "Entertainment", "Time wasters",
-]);
+assert.deepEqual(defaults.map(category => category.name), ["Work", "Family", "Studies"]);
 
 const legacy = {
   entries: [
@@ -21,6 +19,8 @@ assert.deepEqual(legacy.entries.map(entry => entry.categoryId), [
 assert.ok(legacy.entries.every(entry => !("label" in entry)));
 assert.equal(legacy.categories.find(category => category.id === "essentials").name, "Essentials");
 assert.equal(legacy.categories.find(category => category.id === "bad-habits").name, "Bad habits");
+assert.equal(legacy.categories.find(category => category.id === "personal").color, "#22A06B");
+assert.equal(legacy.categories.find(category => category.id === "time-wasters").name, "Time wasters");
 
 const invalid = { entries: [], categories: [{ id: "x", name: "", color: "red" }] };
 ensureCategoryState(invalid, 100);

@@ -3,9 +3,6 @@
     { id: "work", name: "Work", color: "#5B5BD6" },
     { id: "family", name: "Family", color: "#F97360" },
     { id: "studies", name: "Studies", color: "#0EA5A4" },
-    { id: "personal", name: "Personal", color: "#22A06B" },
-    { id: "entertainment", name: "Entertainment", color: "#A855F7" },
-    { id: "time-wasters", name: "Time wasters", color: "#E5484D" },
   ];
   const LEGACY_CATEGORY_IDS = {
     necessary: "essentials",
@@ -38,6 +35,9 @@
     const legacyDefinitions = {
       essentials: { name: "Essentials", color: "#2F9E6F" },
       "bad-habits": { name: "Bad habits", color: "#C73E4D" },
+      personal: { name: "Personal", color: "#22A06B" },
+      entertainment: { name: "Entertainment", color: "#A855F7" },
+      "time-wasters": { name: "Time wasters", color: "#E5484D" },
     };
     for (const id of usedCategoryIds) {
       if (known.has(id)) continue;

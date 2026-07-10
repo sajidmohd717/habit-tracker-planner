@@ -148,9 +148,12 @@
       <p class="category-help">Rename and recolor categories anytime. Archive categories you no longer use—past activities keep their history.</p>
       <div id="category-list" class="category-list"></div>
       <form id="category-form" class="category-add-form">
-        <input type="color" id="category-color" value="#5B5BD6" aria-label="New category color">
-        <input type="text" id="category-name" maxlength="32" placeholder="New category name" required>
-        <button type="submit" class="btn primary">Add category</button>
+        <div class="category-add-row">
+          <input type="text" id="category-name" maxlength="32" placeholder="New category name" required>
+          <button type="submit" class="btn primary">Add category</button>
+        </div>
+        <div id="category-swatches" class="category-swatches" role="radiogroup" aria-label="New category color"></div>
+        <input type="color" id="category-color" value="#5B5BD6" class="category-custom-color" aria-label="Custom category color" tabindex="-1">
       </form>
     </div>
   </div>

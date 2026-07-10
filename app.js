@@ -583,6 +583,91 @@ function refreshCategorySelect(select, preferredId) {
   }
   if (categories.some(category => category.id === previous)) select.value = previous;
   else if (categories.length) select.value = categories[0].id;
+  if (select.catSelectSync) select.catSelectSync();
+}
+
+/* ---------- custom category dropdown (drives a hidden native <select>) ---------- */
+function enhanceCategorySelect(select) {
+  const wrap = document.createElement("div");
+  wrap.className = "cat-select";
+  select.parentNode.insertBefore(wrap, select);
+  wrap.appendChild(select);
+  select.tabIndex = -1;
+  select.setAttribute("aria-hidden", "true");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "cat-select-btn";
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-label", select.getAttribute("aria-label") || "Category");
+  btn.innerHTML = `<span class="label-dot"></span><span class="cat-select-name"></span>
+    <svg class="cat-select-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const menu = document.createElement("div");
+  menu.className = "cat-select-menu hidden";
+  menu.setAttribute("role", "listbox");
+  wrap.append(btn, menu);
+
+  function close() {
+    menu.classList.add("hidden");
+    wrap.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+  }
+  function open() {
+    sync();
+    menu.classList.remove("hidden");
+    wrap.classList.add("open");
+    btn.setAttribute("aria-expanded", "true");
+  }
+
+  function sync() {
+    const current = categoryById(select.value);
+    btn.querySelector(".cat-select-name").textContent = current ? current.name : "Category";
+    btn.style.setProperty("--category-color", current ? current.color : "#778196");
+    if (!menu.classList.contains("hidden")) return; // don't rebuild under an open menu
+    menu.innerHTML = "";
+    for (const option of select.options) {
+      const category = categoryById(option.value);
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "cat-select-option" + (option.value === select.value ? " selected" : "");
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", String(option.value === select.value));
+      item.style.setProperty("--category-color", category ? category.color : "#778196");
+      item.innerHTML = `<span class="label-dot"></span><span class="cat-select-option-name"></span>
+        <svg class="cat-select-check" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.5 5 9l4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      item.querySelector(".cat-select-option-name").textContent = option.textContent;
+      item.addEventListener("click", () => {
+        select.value = option.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        close();
+        sync();
+        btn.focus();
+      });
+      menu.appendChild(item);
+    }
+  }
+
+  btn.addEventListener("click", () => menu.classList.contains("hidden") ? open() : close());
+  btn.addEventListener("keydown", event => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      open();
+      const items = menu.querySelectorAll(".cat-select-option");
+      (menu.querySelector(".cat-select-option.selected") || items[0])?.focus();
+    }
+  });
+  menu.addEventListener("keydown", event => {
+    const items = [...menu.querySelectorAll(".cat-select-option")];
+    const index = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown") { event.preventDefault(); (items[index + 1] || items[0]).focus(); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); (items[index - 1] || items[items.length - 1]).focus(); }
+    else if (event.key === "Escape") { close(); btn.focus(); }
+  });
+  document.addEventListener("click", event => { if (!wrap.contains(event.target)) close(); });
+
+  select.catSelectSync = sync;
+  sync();
 }
 
 function applyCategoryColor(element, category) {
@@ -792,7 +877,55 @@ function renderTracker() {
   }
 }
 
+// preset palette for new categories — distinct hues that fit the app;
+// the "custom" swatch opens the native picker for anything else
+const CATEGORY_PALETTE = [
+  "#5B5BD6", "#2563EB", "#0EA5A4", "#22A06B", "#65A30D", "#EAB308",
+  "#F59E0B", "#F97360", "#E5484D", "#EC4899", "#A855F7", "#8B5E3C", "#64748B",
+];
+let newCategoryColor = CATEGORY_PALETTE[0];
+
+function renderCategorySwatches() {
+  const wrap = document.getElementById("category-swatches");
+  const customInput = document.getElementById("category-color");
+  wrap.innerHTML = "";
+  const isPreset = CATEGORY_PALETTE.includes(newCategoryColor);
+  for (const color of CATEGORY_PALETTE) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "category-swatch" + (color === newCategoryColor ? " selected" : "");
+    btn.style.background = color;
+    btn.setAttribute("role", "radio");
+    btn.setAttribute("aria-checked", String(color === newCategoryColor));
+    btn.setAttribute("aria-label", "Color " + color);
+    btn.addEventListener("click", () => {
+      newCategoryColor = color;
+      renderCategorySwatches();
+    });
+    wrap.appendChild(btn);
+  }
+  const custom = document.createElement("button");
+  custom.type = "button";
+  custom.className = "category-swatch custom" + (isPreset ? "" : " selected");
+  custom.setAttribute("role", "radio");
+  custom.setAttribute("aria-checked", String(!isPreset));
+  custom.setAttribute("aria-label", "Custom color");
+  custom.title = "Custom color";
+  if (!isPreset) custom.style.background = newCategoryColor;
+  custom.addEventListener("click", () => {
+    customInput.value = newCategoryColor;
+    customInput.click();
+  });
+  wrap.appendChild(custom);
+}
+
+document.getElementById("category-color").addEventListener("input", event => {
+  newCategoryColor = event.target.value;
+  renderCategorySwatches();
+});
+
 function renderCategoryManager() {
+  renderCategorySwatches();
   const list = document.getElementById("category-list");
   list.innerHTML = "";
   const ordered = [...state.categories].sort((a, b) =>
@@ -1105,6 +1238,9 @@ document.getElementById("need-before").addEventListener("change", e =>
 document.getElementById("need-after").addEventListener("change", e =>
   document.getElementById("after-fields").classList.toggle("hidden", !e.target.checked));
 
+enhanceCategorySelect(document.getElementById("track-category"));
+enhanceCategorySelect(document.getElementById("fix-label"));
+
 document.getElementById("track-form").addEventListener("submit", e => {
   e.preventDefault();
   const name = document.getElementById("track-name").value.trim();
@@ -1136,10 +1272,14 @@ document.getElementById("category-list").addEventListener("click", event => {
 document.getElementById("category-form").addEventListener("submit", event => {
   event.preventDefault();
   const nameInput = document.getElementById("category-name");
-  const colorInput = document.getElementById("category-color");
   const name = nameInput.value.trim();
   if (!name) return;
-  if (addCategory(name, colorInput.value)) nameInput.value = "";
+  if (addCategory(name, newCategoryColor)) {
+    nameInput.value = "";
+    const used = new Set(state.categories.map(category => category.color.toUpperCase()));
+    newCategoryColor = CATEGORY_PALETTE.find(color => !used.has(color)) || CATEGORY_PALETTE[0];
+    renderCategorySwatches();
+  }
 });
 
 document.getElementById("entry-list").addEventListener("click", e => {
