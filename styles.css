@@ -316,6 +316,37 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 }
 .block-actions button:hover { opacity: 1; }
 
+.now-line {
+  position: absolute;
+  left: 62px;
+  right: 0;
+  height: 0;
+  border-top: 2px solid var(--danger);
+  z-index: 5;
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.now-label {
+  position: absolute;
+  right: 4px;
+  top: -18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--danger);
+  background: var(--card);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
 /* ===== Modal / Wizard ===== */
 .overlay {
   position: fixed;

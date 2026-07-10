@@ -397,7 +397,23 @@ function renderTimeline() {
     layer.appendChild(block);
   }
   timeline.appendChild(layer);
+
+  // "you are here" line, like Google Calendar's red now-indicator
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (nowMin >= startHour * 60 && nowMin <= endHour * 60) {
+    const line = document.createElement("div");
+    line.className = "now-line";
+    line.style.top = `${((nowMin - startHour * 60) / 60) * PX_PER_HOUR}px`;
+    line.innerHTML = `<span class="now-label">${fmtTime(nowMin)}</span>`;
+    timeline.appendChild(line);
+  }
 }
+
+// keep the now-line moving while the planner is visible
+setInterval(() => {
+  if (document.getElementById("tab-planner").classList.contains("active")) renderTimeline();
+}, 60000);
 
 /* ============================================================
    TIME TRACKER
@@ -766,6 +782,7 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab-panel").forEach(p =>
       p.classList.toggle("active", p.id === "tab-" + btn.dataset.tab));
+    if (btn.dataset.tab === "planner") renderTimeline(); // fresh now-line on open
   }));
 
 document.getElementById("habit-form").addEventListener("submit", e => {
