@@ -296,9 +296,17 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .planner-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
 .planner-head h2 { margin: 4px 0 5px; font-size: clamp(1.7rem, 4vw, 2.3rem); letter-spacing: -.035em; }
 .planner-head h2 span { display: inline; color: #b9c2df; font-size: .85rem; font-weight: 500; letter-spacing: 0; }
+.planner-head h2 #day-title-word { color: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
 .planner-head p { color: rgba(244,247,255,.72); }
 .day-hero .eyebrow { color: #b9c2ff; }
 .day-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.day-nav { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.day-nav-btn {
+  color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+  padding: 6px 13px; font-size: .88rem; backdrop-filter: blur(12px);
+}
+.day-nav-btn:hover { background: rgba(255,255,255,.2); }
+.day-today-btn { font-weight: 600; }
 .next-up {
   margin-top: 10px;
   font-size: 0.92rem;

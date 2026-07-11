@@ -112,6 +112,8 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 let renderedDayKey = todayKey();
+let viewDayKey = todayKey(); // day currently shown on the Day tab
+function viewingToday() { return viewDayKey === todayKey(); }
 function daysBetween(keyA, keyB) {
   // whole days from keyA to keyB (date keys "YYYY-MM-DD"), local time
   const a = new Date(keyA + "T00:00:00");
@@ -408,15 +410,13 @@ function renderHeatmap() {
    PLANNER
    ============================================================ */
 
-function todaysTasks() {
-  const key = todayKey();
-  if (!state.tasksByDate[key]) state.tasksByDate[key] = [];
-  return state.tasksByDate[key];
+function dayTasks(key = viewDayKey) {
+  return state.tasksByDate[key] || [];
 }
 
 // task: { id, name, startMin, durMin, aux: false|true, done }
 function addPlannedTask({ name, durMin, startMin, before, after }) {
-  const tasks = todaysTasks();
+  const tasks = (state.tasksByDate[viewDayKey] ??= []);
   const gid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const now = Date.now();
   if (before) tasks.push(touch({ id: gid + "-b", name: before.label, startMin: startMin - before.min, durMin: before.min, aux: true, done: false }, now));
@@ -427,13 +427,12 @@ function addPlannedTask({ name, durMin, startMin, before, after }) {
 }
 
 function toggleTaskDone(id) {
-  const t = todaysTasks().find(x => x.id === id);
+  const t = dayTasks().find(x => x.id === id);
   if (t) { t.done = !t.done; touch(t); save(); renderTimeline(); }
 }
 function deleteTask(id) {
-  const key = todayKey();
   rememberDeletion("tasks", id);
-  state.tasksByDate[key] = todaysTasks().filter(x => x.id !== id);
+  state.tasksByDate[viewDayKey] = dayTasks().filter(x => x.id !== id);
   save();
   renderTimeline();
 }
@@ -441,12 +440,14 @@ function deleteTask(id) {
 // "Gym starts in 1h 20m" banner above the timeline
 function renderNextUp() {
   const el = document.getElementById("next-up");
+  if (!viewingToday()) { el.classList.add("hidden"); return; }
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const upcoming = todaysTasks()
+  const tasksToday = dayTasks(todayKey());
+  const upcoming = tasksToday
     .filter(t => !t.done && t.startMin > nowMin)
     .sort((a, b) => a.startMin - b.startMin)[0];
-  const current = todaysTasks()
+  const current = tasksToday
     .filter(t => !t.done && t.startMin <= nowMin && t.startMin + t.durMin > nowMin)
     .sort((a, b) => b.startMin - a.startMin)[0];
 
@@ -472,12 +473,15 @@ function renderTimeline() {
   renderNextUp();
   const timeline = document.getElementById("timeline");
   const empty = document.getElementById("tasks-empty");
-  const tasks = todaysTasks().slice().sort((a, b) => a.startMin - b.startMin);
+  const dayDelta = daysBetween(todayKey(), viewDayKey);
+  empty.textContent =
+    dayDelta === 0 ? "Your day is still open. Add a plan or start tracking to build the timeline."
+    : dayDelta < 0 ? "Nothing was planned or tracked on this day."
+      : "Nothing planned here yet. Add a plan and get ahead of the day.";
+  const tasks = dayTasks().slice().sort((a, b) => a.startMin - b.startMin);
   const dayStart = dayStartMs();
-  const nextMidnight = new Date(dayStart);
-  nextMidnight.setDate(nextMidnight.getDate() + 1);
-  const dayEnd = nextMidnight.getTime();
-  const actual = entriesToday().map(entry => {
+  const dayEnd = dayStartMs(addDays(viewDayKey, 1));
+  const actual = entriesForDay().map(entry => {
     const start = Math.max(entry.start, dayStart);
     const end = Math.min(entry.end === null ? Date.now() : entry.end, dayEnd);
     return {
@@ -594,10 +598,10 @@ function renderTimeline() {
   }
   timeline.appendChild(actualLayer);
 
-  // "you are here" line, like Google Calendar's red now-indicator
+  // "you are here" line, like Google Calendar's red now-indicator (today only)
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  if (nowMin >= startHour * 60 && nowMin <= endHour * 60) {
+  if (viewingToday() && nowMin >= startHour * 60 && nowMin <= endHour * 60) {
     const line = document.createElement("div");
     line.className = "now-line";
     line.style.top = `${((nowMin - startHour * 60) / 60) * pxPerHour()}px`;
@@ -619,12 +623,12 @@ function centerTimelineOnNow() {
 setInterval(() => {
   const nextDay = todayKey();
   if (nextDay !== renderedDayKey) {
+    if (viewDayKey === renderedDayKey) viewDayKey = nextDay; // follow midnight only if the user was on today
     renderedDayKey = nextDay;
     reconcileHabits();
     renderHabits();
     renderTracker();
-    document.getElementById("today-date").textContent =
-      new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    renderDayHeading();
   }
   if (document.getElementById("tab-planner").classList.contains("active")) renderTimeline();
 }, 60000);
@@ -814,15 +818,14 @@ function deleteEntry(id) {
   renderTracker();
 }
 
-function dayStartMs() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  return start.getTime();
+function dayStartMs(key = viewDayKey) {
+  return new Date(key + "T00:00:00").getTime();
 }
-// entries overlapping today (a running entry started yesterday still counts)
-function entriesToday() {
-  const start = dayStartMs();
-  return state.entries.filter(e => (e.end === null ? Date.now() : e.end) > start);
+// entries overlapping the given day (a running entry started yesterday still counts)
+function entriesForDay(key = viewDayKey) {
+  const start = dayStartMs(key);
+  const end = dayStartMs(addDays(key, 1));
+  return state.entries.filter(e => e.start < end && (e.end === null ? Date.now() : e.end) > start);
 }
 
 function fmtElapsed(ms) {
@@ -899,12 +902,12 @@ function renderTracker() {
     chipsBox.appendChild(chip);
   }
 
-  // today's entries (newest first)
+  // the viewed day's entries (newest first)
   const list = document.getElementById("entry-list");
-  const today = entriesToday().slice().sort((a, b) => b.start - a.start);
-  document.getElementById("entries-empty").classList.toggle("hidden", today.length > 0);
+  const shown = entriesForDay().slice().sort((a, b) => b.start - a.start);
+  document.getElementById("entries-empty").classList.toggle("hidden", shown.length > 0);
   list.innerHTML = "";
-  for (const e of today) {
+  for (const e of shown) {
     const isRunning = e.end === null;
     const dur = (isRunning ? Date.now() : e.end) - e.start;
     const category = categoryById(e.categoryId);
@@ -933,9 +936,10 @@ function renderTracker() {
   const totals = {};
   let grand = 0;
   const dayStart = dayStartMs();
-  for (const e of today) {
-    // only count the portion that falls within today
-    const dur = Math.max(0, (e.end === null ? Date.now() : e.end) - Math.max(e.start, dayStart));
+  const dayEnd = dayStartMs(addDays(viewDayKey, 1));
+  for (const e of shown) {
+    // only count the portion that falls within the viewed day
+    const dur = Math.max(0, Math.min(e.end === null ? Date.now() : e.end, dayEnd) - Math.max(e.start, dayStart));
     totals[e.categoryId] = (totals[e.categoryId] || 0) + dur;
     grand += dur;
   }
@@ -990,8 +994,9 @@ function tickTracker() {
   const totals = {};
   let grand = 0;
   const dayStart = dayStartMs();
-  for (const entry of entriesToday()) {
-    const duration = Math.max(0, (entry.end === null ? now : entry.end) - Math.max(entry.start, dayStart));
+  const dayEnd = dayStartMs(addDays(viewDayKey, 1));
+  for (const entry of entriesForDay()) {
+    const duration = Math.max(0, Math.min(entry.end === null ? now : entry.end, dayEnd) - Math.max(entry.start, dayStart));
     totals[entry.categoryId] = (totals[entry.categoryId] || 0) + duration;
     grand += duration;
   }
@@ -1339,6 +1344,8 @@ const wizard = {
   overlay: document.getElementById("wizard-overlay"),
   open() {
     this.step = 1;
+    document.getElementById("wizard-title").textContent =
+      viewingToday() ? "New task" : `New task for ${dayLabel(viewDayKey)}`;
     document.getElementById("task-name").value = "";
     document.getElementById("task-duration-h").value = 1;
     document.getElementById("task-duration-m").value = 0;
@@ -1614,8 +1621,50 @@ document.getElementById("running-bar-edit").addEventListener("click", () => {
   if (running) openActivityEditor(running.id);
 });
 
-document.getElementById("today-date").textContent =
-  new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+/* ---------- day navigation (Day tab) ---------- */
+// "today" / "tomorrow" / "yesterday", otherwise the weekday-and-date
+function dayLabel(key) {
+  const delta = daysBetween(todayKey(), key);
+  if (delta === 0) return "today";
+  if (delta === 1) return "tomorrow";
+  if (delta === -1) return "yesterday";
+  return new Date(key + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+}
+
+function renderDayHeading() {
+  const delta = daysBetween(todayKey(), viewDayKey);
+  const d = new Date(viewDayKey + "T00:00:00");
+  const dateText = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  document.getElementById("today-date").textContent =
+    delta === 0 ? dateText : delta === 1 ? `Tomorrow · ${dateText}` : delta === -1 ? `Yesterday · ${dateText}` : dateText;
+  document.getElementById("day-title-word").textContent =
+    delta === 0 ? "Your day" : delta < 0 ? "Looking back" : "Planning ahead";
+  document.getElementById("back-to-today").classList.toggle("hidden", delta === 0);
+  // Tracking always happens in the present — hide the start form on other days.
+  document.querySelector(".day-track-card").classList.toggle("hidden", delta !== 0);
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  document.getElementById("timeline-title").textContent =
+    delta === 0 ? "Today's timeline" : `${cap(dayLabel(viewDayKey))} — timeline`;
+  document.getElementById("balance-kicker").textContent =
+    delta === 0 ? "Today's balance" : `${cap(dayLabel(viewDayKey))} — balance`;
+  document.getElementById("summary-empty").textContent =
+    delta === 0 ? "Nothing tracked yet today. Start an activity and find out where your day goes."
+      : "Nothing tracked on this day.";
+}
+
+function setViewDay(key) {
+  viewDayKey = key;
+  renderDayHeading();
+  renderTracker(); // re-renders entries, summary, and the timeline
+  if (viewingToday()) centerTimelineOnNow();
+  else document.getElementById("timeline").scrollTop = 0;
+}
+
+document.getElementById("day-prev").addEventListener("click", () => setViewDay(addDays(viewDayKey, -1)));
+document.getElementById("day-next").addEventListener("click", () => setViewDay(addDays(viewDayKey, 1)));
+document.getElementById("back-to-today").addEventListener("click", () => setViewDay(todayKey()));
+
+renderDayHeading();
 
 /* ---------- settings ---------- */
 

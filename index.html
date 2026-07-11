@@ -6,7 +6,7 @@
   <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
   <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="app-header">
@@ -79,13 +79,18 @@
       <div class="planner-head">
         <div>
           <span class="eyebrow">Plan it. Live it. Learn from it.</span>
-          <h2>Your day <span id="today-date"></span></h2>
+          <h2><span id="day-title-word">Your day</span> <span id="today-date"></span></h2>
           <p>See what you intended beside what actually happened.</p>
         </div>
         <div class="day-actions">
           <button id="manage-categories-btn" class="btn category-manage-btn">Categories</button>
           <button id="open-task-wizard" class="btn primary">+ Add plan</button>
         </div>
+      </div>
+      <div class="day-nav" role="group" aria-label="Change day">
+        <button id="day-prev" class="btn day-nav-btn" title="Previous day" aria-label="Previous day">◀</button>
+        <button id="back-to-today" class="btn day-nav-btn day-today-btn hidden">Back to today</button>
+        <button id="day-next" class="btn day-nav-btn" title="Next day" aria-label="Next day">▶</button>
       </div>
       <p id="next-up" class="next-up hidden"></p>
     </section>
@@ -106,7 +111,7 @@
 
     <section class="card timeline-card">
       <div class="timeline-card-head">
-        <div><span class="section-kicker">Plan vs actual</span><h2>Today's timeline</h2></div>
+        <div><span class="section-kicker">Plan vs actual</span><h2 id="timeline-title">Today's timeline</h2></div>
         <div class="zoom-controls" aria-label="Timeline zoom">
           <button id="zoom-out" class="btn ghost zoom-btn" title="Show less detail" aria-label="Zoom timeline out">−</button>
           <span id="zoom-label" class="zoom-label" aria-live="polite">1 hour</span>
@@ -121,7 +126,7 @@
     <section class="card tracker-insights-card">
       <div class="insights-head">
         <div>
-          <span class="section-kicker">Today's balance</span>
+          <span class="section-kicker" id="balance-kicker">Today's balance</span>
           <h2>Time by category</h2>
         </div>
         <div class="tracked-total"><span>Total tracked</span><strong id="summary-total">0:00</strong></div>
@@ -320,7 +325,7 @@
   <script src="firebase-config.js"></script>
   <script src="category-model.js?v=10"></script>
   <script src="state-merge.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
   <script type="module" src="sync.js?v=10"></script>
 </body>
 </html>
