@@ -6,11 +6,12 @@
   <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
   <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
   <header class="app-header">
     <div class="header-bar">
+      <h1>Habitloom</h1>
       <div id="auth-area" class="auth-area">
         <span id="sync-status" class="sync-status" data-state="local" role="status" aria-live="polite">Local only</span>
         <span id="user-info" class="user-info hidden"></span>
@@ -19,8 +20,6 @@
       </div>
       <button id="settings-btn" class="btn auth-btn icon-btn" title="Settings" aria-label="Open settings">⚙</button>
     </div>
-    <h1>Habitloom</h1>
-    <p class="tagline">Weave a better you — habits, plans, and honest time, 1% a day.</p>
     <nav class="tabs" role="tablist" aria-label="Habitloom sections">
       <button id="tab-button-habits" class="tab-btn active" data-tab="habits" role="tab" aria-selected="true" aria-controls="tab-habits" tabindex="0">Habits</button>
       <button id="tab-button-planner" class="tab-btn" data-tab="planner" role="tab" aria-selected="false" aria-controls="tab-planner" tabindex="-1">Day</button>
@@ -77,20 +76,16 @@
   <main id="tab-planner" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-planner">
     <section class="day-hero">
       <div class="planner-head">
-        <div>
-          <span class="eyebrow">Plan it. Live it. Learn from it.</span>
-          <h2><span id="day-title-word">Your day</span> <span id="today-date"></span></h2>
-          <p>See what you intended beside what actually happened.</p>
+        <div class="day-nav" role="group" aria-label="Change day">
+          <button id="day-prev" class="btn day-nav-btn" title="Previous day" aria-label="Previous day">◀</button>
+          <button id="day-next" class="btn day-nav-btn" title="Next day" aria-label="Next day">▶</button>
+          <button id="back-to-today" class="btn day-nav-btn day-today-btn hidden">Today</button>
         </div>
+        <h2><span id="day-title-word">Your day</span> <span id="today-date"></span></h2>
         <div class="day-actions">
           <button id="manage-categories-btn" class="btn category-manage-btn">Categories</button>
           <button id="open-task-wizard" class="btn primary">+ Add plan</button>
         </div>
-      </div>
-      <div class="day-nav" role="group" aria-label="Change day">
-        <button id="day-prev" class="btn day-nav-btn" title="Previous day" aria-label="Previous day">◀</button>
-        <button id="back-to-today" class="btn day-nav-btn day-today-btn hidden">Back to today</button>
-        <button id="day-next" class="btn day-nav-btn" title="Next day" aria-label="Next day">▶</button>
       </div>
       <p id="next-up" class="next-up hidden"></p>
     </section>
@@ -98,7 +93,6 @@
     <section class="card tracker-compose-card day-track-card">
       <div class="compose-heading">
         <div><span class="section-kicker">Track now</span><h2>What are you doing?</h2></div>
-        <p>Starting something new closes the previous activity automatically.</p>
       </div>
       <form id="track-form" class="track-form">
         <input type="text" id="track-name" placeholder="e.g. Focused work" maxlength="80" required>
@@ -325,7 +319,7 @@
   <script src="firebase-config.js"></script>
   <script src="category-model.js?v=10"></script>
   <script src="state-merge.js?v=10"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
   <script type="module" src="sync.js?v=10"></script>
 </body>
 </html>

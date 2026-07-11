@@ -583,15 +583,16 @@ function renderTimeline() {
     const top = ((item.startMin - startHour * 60) / 60) * pxPerHour();
     const height = Math.max(22, ((item.endMin - item.startMin) / 60) * pxPerHour() - 2);
     const category = categoryById(entry.categoryId);
-    const block = document.createElement("button");
-    block.type = "button";
+    const block = document.createElement("div");
     block.className = "time-block actual-block" + (entry.end === null ? " running" : "") + (height < 38 ? " compact" : "");
-    block.dataset.editTimelineEntry = entry.id;
     block.style.top = `${top}px`;
     block.style.height = `${height}px`;
-    block.setAttribute("aria-label", `Edit tracked activity ${entry.name}, ${fmtClock(item.start)} to ${entry.end === null ? "now" : fmtClock(item.end)}`);
     applyCategoryColor(block, category);
-    block.innerHTML = `<span class="block-title"></span><span class="block-time"></span>`;
+    block.innerHTML = `<button type="button" class="block-main" data-edit-timeline-entry="${entry.id}"><span class="block-title"></span><span class="block-time"></span></button>`
+      + (entry.end === null ? "" : `<button type="button" class="block-play" data-restart-entry="${entry.id}" title="Start this activity again now">▶</button>`);
+    const main = block.querySelector(".block-main");
+    main.setAttribute("aria-label", `Edit tracked activity ${entry.name}, ${fmtClock(item.start)} to ${entry.end === null ? "now" : fmtClock(item.end)}`);
+    block.querySelector(".block-play")?.setAttribute("aria-label", `Start ${entry.name} again now`);
     block.querySelector(".block-title").textContent = entry.name;
     block.querySelector(".block-time").textContent = `${fmtClock(item.start)} – ${entry.end === null ? "now" : fmtClock(item.end)}`;
     actualLayer.appendChild(block);
@@ -799,6 +800,19 @@ function startActivity(name, categoryId) {
   renderTracker();
 }
 
+// Restart a past activity from its timeline block or history row: same name
+// and category, starting now. Viewing another day jumps back to today so the
+// freshly started activity is visible.
+function restartEntry(id) {
+  const entry = state.entries.find(e => e.id === id);
+  if (!entry) return;
+  startActivity(entry.name, entry.categoryId);
+  if (!viewingToday()) {
+    setViewDay(todayKey());
+    showToast(`▶ Started "${entry.name}" — jumped back to today.`);
+  }
+}
+
 // internal only — no UI stop button exists; called when a new activity starts.
 // Ends every running entry, not just the newest, so duplicates can't linger.
 function endRunning(at = Date.now(), persist = true) {
@@ -923,7 +937,8 @@ function renderTracker() {
       </span>
       <span class="entry-timing"><span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span><span class="entry-dur">${fmtElapsed(dur)}</span></span>
       <span class="entry-actions">
-        ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry" aria-label="Delete ${escapeAttr(e.name)}">✕</button>`}
+        ${isRunning ? "" : `<button class="btn ghost entry-play" data-restart-entry="${e.id}" title="Start this activity again now" aria-label="Start ${escapeAttr(e.name)} again now">▶</button>
+        <button class="btn ghost" data-del-entry="${e.id}" title="Delete entry" aria-label="Delete ${escapeAttr(e.name)}">✕</button>`}
       </span>`;
     const nameEl = row.querySelector(".entry-name");
     nameEl.textContent = e.name + " ";
@@ -1477,10 +1492,12 @@ document.getElementById("habit-list").addEventListener("click", e => {
 document.getElementById("timeline").addEventListener("click", e => {
   const toggle = e.target.closest("[data-toggle]");
   const remove = e.target.closest("[data-remove]");
+  const restart = e.target.closest("[data-restart-entry]");
   const tracked = e.target.closest("[data-edit-timeline-entry]");
   if (toggle) toggleTaskDone(toggle.dataset.toggle);
   if (remove) deleteTask(remove.dataset.remove);
-  if (tracked) openActivityEditor(tracked.dataset.editTimelineEntry);
+  if (restart) restartEntry(restart.dataset.restartEntry);
+  else if (tracked) openActivityEditor(tracked.dataset.editTimelineEntry);
 });
 
 function setZoom(z) {
@@ -1585,8 +1602,10 @@ document.getElementById("category-form").addEventListener("submit", event => {
 document.getElementById("entry-list").addEventListener("click", e => {
   const edit = e.target.closest("[data-edit-entry]");
   const del = e.target.closest("[data-del-entry]");
+  const restart = e.target.closest("[data-restart-entry]");
   if (edit) openActivityEditor(edit.dataset.editEntry);
   if (del) deleteEntry(del.dataset.delEntry);
+  if (restart) restartEntry(restart.dataset.restartEntry);
 });
 
 document.getElementById("activity-edit-close").addEventListener("click", closeActivityEditor);
