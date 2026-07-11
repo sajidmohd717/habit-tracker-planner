@@ -113,6 +113,8 @@ sync.js            # Google sign-in + Firestore cross-device sync
 tests/              # merge, deletion-tombstone, and category-migration regression tests
 ```
 
+Planning future work or handing the project to another developer or AI assistant? Read **[DEVELOPMENT.md](DEVELOPMENT.md)** for the product vision, architecture, sync invariants, workflow, and recommended modularization path.
+
 ## Roadmap / Ideas
 
 - [ ] "Today" dashboard combining habits, next planned block, and running timer
