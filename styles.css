@@ -293,8 +293,11 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
   border: 1px solid var(--border);
 }
 .hour-row.half .hour-label { font-size: 0.68rem; opacity: 0.7; }
-.timeline { position: relative; }
+.timeline { position: relative; max-height: min(62vh, 600px); overflow-y: auto; overscroll-behavior: contain; }
 .timeline.empty { display: none; }
+.timeline::-webkit-scrollbar { width: 8px; }
+.timeline::-webkit-scrollbar-thumb { background: #d4d9e6; border-radius: 999px; }
+.timeline::-webkit-scrollbar-thumb:hover { background: #b9c0d4; }
 .hour-row {
   display: flex;
   height: 56px;
@@ -314,7 +317,8 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
   left: 66px;
   right: 8px;
   top: 0;
-  bottom: 0;
+  /* height is set inline by renderTimeline — inside a scroll container,
+     bottom: 0 would resolve to the visible box, not the full day */
 }
 .time-block {
   position: absolute;

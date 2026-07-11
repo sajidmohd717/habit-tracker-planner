@@ -505,6 +505,7 @@ function renderTimeline() {
 
   const layer = document.createElement("div");
   layer.className = "blocks-layer";
+  layer.style.height = `${(endHour - startHour) * pxPerHour()}px`;
   for (const t of tasks) {
     const top = ((t.startMin - startHour * 60) / 60) * pxPerHour();
     const height = Math.max(22, (t.durMin / 60) * pxPerHour() - 2);
@@ -541,6 +542,15 @@ function renderTimeline() {
     line.innerHTML = `<span class="now-label">${fmtTime(nowMin)}</span>`;
     timeline.appendChild(line);
   }
+}
+
+// scroll the timeline panel so the current time sits mid-view; runs on
+// planner open and zoom change, never on re-renders (don't fight the user)
+function centerTimelineOnNow() {
+  const timeline = document.getElementById("timeline");
+  const line = timeline.querySelector(".now-line");
+  if (!line) return;
+  timeline.scrollTop = Math.max(0, line.offsetTop - timeline.clientHeight / 2);
 }
 
 // keep the now-line moving while the planner is visible
@@ -1292,7 +1302,10 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".tab-panel").forEach(p =>
       p.classList.toggle("active", p.id === "tab-" + btn.dataset.tab));
-    if (btn.dataset.tab === "planner") renderTimeline(); // fresh now-line on open
+    if (btn.dataset.tab === "planner") {
+      renderTimeline(); // fresh now-line on open
+      centerTimelineOnNow();
+    }
   }));
 
 document.getElementById("habit-form").addEventListener("submit", e => {
@@ -1332,6 +1345,7 @@ function setZoom(z) {
   document.getElementById("zoom-out").disabled = z === 0;
   document.getElementById("zoom-label").textContent = z === 1 ? "30m" : "1h";
   renderTimeline();
+  centerTimelineOnNow();
 }
 document.getElementById("zoom-in").addEventListener("click", () => setZoom(1));
 document.getElementById("zoom-out").addEventListener("click", () => setZoom(0));
