@@ -828,11 +828,12 @@ function renderTracker() {
     applyCategoryColor(row, category);
     row.innerHTML = `
       <span class="entry-label-dot"></span>
-      <span class="entry-main"><span class="entry-name"></span><span class="entry-category"></span></span>
-      <span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span>
-      <span class="entry-dur">${fmtElapsed(dur)}</span>
+      <span class="entry-main">
+        <span class="entry-name-line"><span class="entry-name"></span><button class="entry-edit-icon" data-edit-entry="${e.id}" aria-label="Edit activity" title="Edit activity">✎</button></span>
+        <span class="entry-category"></span>
+      </span>
+      <span class="entry-timing"><span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span><span class="entry-dur">${fmtElapsed(dur)}</span></span>
       <span class="entry-actions">
-        <button class="btn ghost" data-edit-entry="${e.id}" title="Edit activity">Edit</button>
         ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}
       </span>`;
     const nameEl = row.querySelector(".entry-name");
@@ -1093,16 +1094,32 @@ setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
 /* ---------- activity editor ---------- */
 
 let editingEntryId = null;
+let editingOriginalStart = null;
+let editingOriginalEnd = null;
 
-function datetimeLocalValue(ms) {
+function dateInputValue(ms) {
   const date = new Date(ms);
   const part = value => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`
-    + `T${part(date.getHours())}:${part(date.getMinutes())}:${part(date.getSeconds())}`;
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`;
+}
+
+function timeInputValue(ms) {
+  const date = new Date(ms);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function readEditedDateTime(prefix, originalMs) {
+  const date = document.getElementById(`activity-edit-${prefix}-date`).value;
+  const time = document.getElementById(`activity-edit-${prefix}-time`).value;
+  if (!date || !time) return NaN;
+  if (originalMs !== null && date === dateInputValue(originalMs) && time === timeInputValue(originalMs)) return originalMs;
+  return new Date(`${date}T${time}:00`).getTime();
 }
 
 function closeActivityEditor() {
   editingEntryId = null;
+  editingOriginalStart = null;
+  editingOriginalEnd = null;
   document.getElementById("activity-edit-overlay").classList.add("hidden");
 }
 
@@ -1110,14 +1127,18 @@ function openActivityEditor(id) {
   const entry = state.entries.find(item => item.id === id);
   if (!entry) return;
   editingEntryId = id;
+  editingOriginalStart = entry.start;
+  editingOriginalEnd = entry.end;
   const running = entry.end === null;
   document.getElementById("activity-edit-kind").textContent = running ? "Currently tracking" : "Completed activity";
   document.getElementById("activity-edit-name").value = entry.name;
   const categorySelect = document.getElementById("activity-edit-category");
   refreshCategorySelect(categorySelect, entry.categoryId);
-  document.getElementById("activity-edit-start").value = datetimeLocalValue(entry.start);
+  document.getElementById("activity-edit-start-date").value = dateInputValue(entry.start);
+  document.getElementById("activity-edit-start-time").value = timeInputValue(entry.start);
   document.getElementById("activity-edit-end-row").classList.toggle("hidden", running);
-  document.getElementById("activity-edit-end").value = running ? "" : datetimeLocalValue(entry.end);
+  document.getElementById("activity-edit-end-date").value = running ? "" : dateInputValue(entry.end);
+  document.getElementById("activity-edit-end-time").value = running ? "" : timeInputValue(entry.end);
   document.getElementById("activity-edit-overlay").classList.remove("hidden");
   document.getElementById("activity-edit-name").focus();
 }
@@ -1127,9 +1148,9 @@ function saveActivityEdit() {
   if (!entry) { closeActivityEditor(); return; }
   const name = document.getElementById("activity-edit-name").value.trim();
   const categoryId = document.getElementById("activity-edit-category").value;
-  const start = new Date(document.getElementById("activity-edit-start").value).getTime();
+  const start = readEditedDateTime("start", editingOriginalStart);
   const running = entry.end === null;
-  const end = running ? null : new Date(document.getElementById("activity-edit-end").value).getTime();
+  const end = running ? null : readEditedDateTime("end", editingOriginalEnd);
   const now = Date.now();
   if (!name) { alert("Give the activity a name."); return; }
   if (!Number.isFinite(start) || (!running && !Number.isFinite(end))) {
