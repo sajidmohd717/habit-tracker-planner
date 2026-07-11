@@ -3,25 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
+  <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
   <header class="app-header">
     <div class="header-bar">
       <div id="auth-area" class="auth-area">
+        <span id="sync-status" class="sync-status" data-state="local" role="status" aria-live="polite">Local only</span>
         <span id="user-info" class="user-info hidden"></span>
         <button id="sign-in-btn" class="btn auth-btn">Sign in with Google</button>
         <button id="sign-out-btn" class="btn auth-btn hidden">Sign out</button>
       </div>
-      <button id="settings-btn" class="btn auth-btn" title="Settings">⚙</button>
+      <button id="settings-btn" class="btn auth-btn icon-btn" title="Settings" aria-label="Open settings">⚙</button>
     </div>
     <h1>Habitloom</h1>
     <p class="tagline">Weave a better you — habits, plans, and honest time, 1% a day.</p>
-    <nav class="tabs">
-      <button class="tab-btn active" data-tab="habits">Habits</button>
-      <button class="tab-btn" data-tab="planner">Planner</button>
-      <button class="tab-btn" data-tab="tracker">Tracker</button>
+    <nav class="tabs" role="tablist" aria-label="Habitloom sections">
+      <button id="tab-button-habits" class="tab-btn active" data-tab="habits" role="tab" aria-selected="true" aria-controls="tab-habits" tabindex="0">Habits</button>
+      <button id="tab-button-planner" class="tab-btn" data-tab="planner" role="tab" aria-selected="false" aria-controls="tab-planner" tabindex="-1">Planner</button>
+      <button id="tab-button-tracker" class="tab-btn" data-tab="tracker" role="tab" aria-selected="false" aria-controls="tab-tracker" tabindex="-1">Tracker</button>
     </nav>
   </header>
 
@@ -38,7 +41,7 @@
   </div>
 
   <!-- ============ HABITS TAB ============ -->
-  <main id="tab-habits" class="tab-panel active">
+  <main id="tab-habits" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-habits">
     <div id="stack-nudge" class="nudge hidden">
       🎉 All your habits have a 7+ day streak. You're consistent — ready to stack a new habit?
     </div>
@@ -72,7 +75,7 @@
   </main>
 
   <!-- ============ PLANNER TAB ============ -->
-  <main id="tab-planner" class="tab-panel">
+  <main id="tab-planner" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-planner">
     <section class="card">
       <div class="planner-head">
         <h2>Today's plan <span id="today-date" class="muted"></span></h2>
@@ -83,9 +86,9 @@
 
     <section class="card timeline-card">
       <div class="zoom-controls">
-        <button id="zoom-out" class="btn ghost zoom-btn" title="Zoom out (1-hour rows)">−</button>
+        <button id="zoom-out" class="btn ghost zoom-btn" title="Zoom out (1-hour rows)" aria-label="Zoom timeline out">−</button>
         <span id="zoom-label" class="muted">1h</span>
-        <button id="zoom-in" class="btn ghost zoom-btn" title="Zoom in (30-minute rows)">+</button>
+        <button id="zoom-in" class="btn ghost zoom-btn" title="Zoom in (30-minute rows)" aria-label="Zoom timeline in">+</button>
       </div>
       <div id="timeline" class="timeline"></div>
       <p id="tasks-empty" class="empty-msg">Nothing planned yet. Add a task and give it a time slot.</p>
@@ -93,7 +96,7 @@
   </main>
 
   <!-- ============ TRACKER TAB ============ -->
-  <main id="tab-tracker" class="tab-panel">
+  <main id="tab-tracker" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-tracker">
     <section class="tracker-hero">
       <div>
         <span class="eyebrow">Your time, made visible</span>
@@ -138,11 +141,11 @@
 
   <!-- ============ CATEGORY MANAGER MODAL ============ -->
   <div id="categories-overlay" class="overlay hidden">
-    <div class="modal categories-modal">
+    <div class="modal categories-modal" role="dialog" aria-modal="true" aria-labelledby="categories-title">
       <div class="modal-head">
         <div>
           <span class="section-kicker">Make it yours</span>
-          <h3>Activity categories</h3>
+          <h3 id="categories-title">Activity categories</h3>
         </div>
         <button id="categories-close" class="btn ghost" aria-label="Close category manager">✕</button>
       </div>
@@ -161,11 +164,11 @@
 
   <!-- ============ CATEGORY DELETE CONFIRM MODAL ============ -->
   <div id="category-delete-overlay" class="overlay hidden">
-    <div class="modal category-delete-modal">
+    <div class="modal category-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="category-delete-title">
       <div class="modal-head">
         <div>
           <span class="section-kicker">Careful now</span>
-          <h3>Delete "<span id="category-delete-name"></span>"?</h3>
+          <h3 id="category-delete-title">Delete "<span id="category-delete-name"></span>"?</h3>
         </div>
         <button id="category-delete-cancel" class="btn ghost" aria-label="Cancel delete">✕</button>
       </div>
@@ -180,10 +183,10 @@
 
   <!-- ============ TASK WIZARD MODAL ============ -->
   <div id="wizard-overlay" class="overlay hidden">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <div class="modal-head">
         <h3 id="wizard-title">New task</h3>
-        <button id="wizard-close" class="btn ghost">✕</button>
+        <button id="wizard-close" class="btn ghost" aria-label="Close task wizard">✕</button>
       </div>
 
       <div class="wizard-step" data-step="1">
@@ -228,10 +231,20 @@
 
   <!-- ============ SETTINGS MODAL ============ -->
   <div id="settings-overlay" class="overlay hidden">
-    <div class="modal">
+    <div class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="modal-head">
-        <h3>⚙ Settings</h3>
-        <button id="settings-close" class="btn ghost">✕</button>
+        <h3 id="settings-title">⚙ Settings</h3>
+        <button id="settings-close" class="btn ghost" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="settings-section">
+        <h4>Your data</h4>
+        <p class="hint">Habitloom works locally without an account. Sign in to sync between devices. Export a backup anytime for an extra copy you control.</p>
+        <div class="settings-actions">
+          <button id="export-data-btn" class="btn ghost settings-action-btn">Export backup</button>
+          <button id="import-data-btn" class="btn ghost settings-action-btn">Import backup</button>
+          <input id="import-data-file" type="file" accept="application/json,.json" class="hidden">
+        </div>
       </div>
 
       <div class="settings-section danger-zone">
@@ -244,10 +257,10 @@
 
   <!-- ============ WHY-NOTE CHECK-IN MODAL ============ -->
   <div id="why-overlay" class="overlay hidden">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="why-title">
       <div class="modal-head">
         <h3 id="why-title">Remember why</h3>
-        <button id="why-close" class="btn ghost">✕</button>
+        <button id="why-close" class="btn ghost" aria-label="Close check-in reminder">✕</button>
       </div>
       <p class="hint" id="why-habit-name"></p>
       <div id="why-note-text" class="note-text"></div>
@@ -263,11 +276,11 @@
 
   <!-- ============ ACTIVITY EDITOR MODAL ============ -->
   <div id="activity-edit-overlay" class="overlay hidden">
-    <div class="modal activity-edit-modal">
+    <div class="modal activity-edit-modal" role="dialog" aria-modal="true" aria-labelledby="activity-edit-title">
       <div class="modal-head">
         <div>
           <span class="section-kicker" id="activity-edit-kind">Activity</span>
-          <h3>Edit activity</h3>
+          <h3 id="activity-edit-title">Edit activity</h3>
         </div>
         <button id="activity-edit-close" class="btn ghost" aria-label="Close activity editor">✕</button>
       </div>
@@ -301,10 +314,12 @@
     </div>
   </div>
 
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <script src="firebase-config.js"></script>
-  <script src="category-model.js?v=8"></script>
-  <script src="state-merge.js?v=8"></script>
-  <script src="app.js?v=8"></script>
-  <script type="module" src="sync.js?v=8"></script>
+  <script src="category-model.js?v=9"></script>
+  <script src="state-merge.js?v=9"></script>
+  <script src="app.js?v=9"></script>
+  <script type="module" src="sync.js?v=9"></script>
 </body>
 </html>

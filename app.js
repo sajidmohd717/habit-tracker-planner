@@ -37,6 +37,21 @@ function save() {
   window.dispatchEvent(new Event("state-saved")); // sync.js mirrors to the cloud when signed in
 }
 
+let toastTimer = null;
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  clearTimeout(toastTimer);
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 3200);
+}
+
+function escapeAttr(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]);
+}
+
 function touch(item, at = Date.now()) {
   item.updatedAt = Math.max((item.updatedAt || 0) + 1, at);
   return item;
@@ -95,6 +110,7 @@ function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+let renderedDayKey = todayKey();
 function daysBetween(keyA, keyB) {
   // whole days from keyA to keyB (date keys "YYYY-MM-DD"), local time
   const a = new Date(keyA + "T00:00:00");
@@ -289,7 +305,7 @@ function renderHabits() {
         ${doneToday
           ? `<span class="done-today">✓ Done today</span>`
           : `<button class="btn success" data-checkin="${h.id}">${h.streak === 0 && !h.lastCheckin ? "🌱 Start habit" : "Continue streak"}</button>`}
-        <button class="btn ghost" data-delete="${h.id}" title="Delete habit">🗑</button>
+        <button class="btn ghost" data-delete="${h.id}" title="Delete habit" aria-label="Delete ${escapeAttr(h.name)}">🗑</button>
       </div>`;
     card.querySelector(".habit-name").textContent = h.name;
 
@@ -524,8 +540,8 @@ function renderTimeline() {
         <span class="block-time">${fmtTime(t.startMin)} – ${fmtTime(t.startMin + t.durMin)} · ${fmtDuration(t.durMin)}</span>
       </div>
       <div class="block-actions">
-        <button data-toggle="${t.id}" title="Mark done">${t.done ? "↩" : "✓"}</button>
-        <button data-remove="${t.id}" title="Remove">✕</button>
+        <button data-toggle="${t.id}" title="${t.done ? "Mark not done" : "Mark done"}" aria-label="${t.done ? "Mark not done" : "Mark done"}: ${escapeAttr(t.name)}">${t.done ? "↩" : "✓"}</button>
+        <button data-remove="${t.id}" title="Remove" aria-label="Remove ${escapeAttr(t.name)}">✕</button>
       </div>`;
     block.querySelector(".block-title").textContent = t.name + " ";
     layer.appendChild(block);
@@ -555,6 +571,15 @@ function centerTimelineOnNow() {
 
 // keep the now-line moving while the planner is visible
 setInterval(() => {
+  const nextDay = todayKey();
+  if (nextDay !== renderedDayKey) {
+    renderedDayKey = nextDay;
+    reconcileHabits();
+    renderHabits();
+    renderTracker();
+    document.getElementById("today-date").textContent =
+      new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  }
   if (document.getElementById("tab-planner").classList.contains("active")) renderTimeline();
 }, 60000);
 
@@ -797,9 +822,9 @@ function renderTracker() {
   }
   // Starter suggestions until the user has their own recent activities.
   const starters = [
-    { name: "Down time", categoryId: "entertainment" },
-    { name: "Morning routine", categoryId: "personal" },
-    { name: "Sleep", categoryId: "personal" },
+    { name: "Focused work", categoryId: "work" },
+    { name: "Family time", categoryId: "family" },
+    { name: "Study session", categoryId: "studies" },
   ];
   for (const s of starters) {
     if (recents.length >= 6) break;
@@ -835,6 +860,7 @@ function renderTracker() {
     const category = categoryById(e.categoryId);
     const row = document.createElement("div");
     row.className = "entry-row";
+    row.dataset.entryId = e.id;
     applyCategoryColor(row, category);
     row.innerHTML = `
       <span class="entry-label-dot"></span>
@@ -844,7 +870,7 @@ function renderTracker() {
       </span>
       <span class="entry-timing"><span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span><span class="entry-dur">${fmtElapsed(dur)}</span></span>
       <span class="entry-actions">
-        ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}
+        ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry" aria-label="Delete ${escapeAttr(e.name)}">✕</button>`}
       </span>`;
     const nameEl = row.querySelector(".entry-name");
     nameEl.textContent = e.name + " ";
@@ -877,6 +903,7 @@ function renderTracker() {
       const percent = Math.round((totalMs / grand) * 100);
       const seg = document.createElement("div");
       seg.className = "summary-seg";
+      seg.dataset.summaryCategory = categoryId;
       seg.style.flex = String(totalMs / grand);
       seg.style.background = category.color;
       seg.title = `${category.name}: ${fmtElapsed(totalMs)}`;
@@ -884,11 +911,51 @@ function renderTracker() {
 
       const item = document.createElement("span");
       item.className = "legend-item";
+      item.dataset.summaryCategory = categoryId;
       applyCategoryColor(item, category);
       item.innerHTML = `<span class="label-dot"></span><span class="legend-copy"><span class="legend-name"></span><strong>${fmtElapsed(totalMs)}</strong></span><span class="legend-percent">${percent}%</span>`;
       item.querySelector(".legend-name").textContent = category.name;
       legend.appendChild(item);
     }
+  }
+}
+
+// Update only live numbers while tracking. Rebuilding the whole tracker every
+// second detached buttons and form controls in the middle of user interactions.
+function tickTracker() {
+  const running = runningEntry();
+  if (!running) return;
+  const now = Date.now();
+  document.getElementById("running-bar-elapsed").textContent = fmtElapsed(now - running.start);
+
+  for (const row of document.querySelectorAll(".entry-row[data-entry-id]")) {
+    if (row.dataset.entryId === running.id) {
+      const duration = row.querySelector(".entry-dur");
+      if (duration) duration.textContent = fmtElapsed(now - running.start);
+      break;
+    }
+  }
+
+  const totals = {};
+  let grand = 0;
+  const dayStart = dayStartMs();
+  for (const entry of entriesToday()) {
+    const duration = Math.max(0, (entry.end === null ? now : entry.end) - Math.max(entry.start, dayStart));
+    totals[entry.categoryId] = (totals[entry.categoryId] || 0) + duration;
+    grand += duration;
+  }
+  document.getElementById("summary-total").textContent = fmtElapsed(grand);
+  for (const item of document.querySelectorAll(".legend-item[data-summary-category]")) {
+    const total = totals[item.dataset.summaryCategory] || 0;
+    const strong = item.querySelector("strong");
+    const percent = item.querySelector(".legend-percent");
+    if (strong) strong.textContent = fmtElapsed(total);
+    if (percent) percent.textContent = grand ? `${Math.round((total / grand) * 100)}%` : "0%";
+  }
+  for (const segment of document.querySelectorAll(".summary-seg[data-summary-category]")) {
+    const total = totals[segment.dataset.summaryCategory] || 0;
+    segment.style.flex = grand ? String(total / grand) : "0";
+    segment.title = `${categoryById(segment.dataset.summaryCategory).name}: ${fmtElapsed(total)}`;
   }
 }
 
@@ -1099,7 +1166,7 @@ function addCategory(name, color) {
 }
 
 // live tick while a timer runs (updates bar, entry durations, summary)
-setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
+setInterval(tickTracker, 1000);
 
 /* ---------- activity editor ---------- */
 
@@ -1297,16 +1364,34 @@ const wizard = {
    WIRING
    ============================================================ */
 
-document.querySelectorAll(".tab-btn").forEach(btn =>
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
-    document.querySelectorAll(".tab-panel").forEach(p =>
-      p.classList.toggle("active", p.id === "tab-" + btn.dataset.tab));
-    if (btn.dataset.tab === "planner") {
-      renderTimeline(); // fresh now-line on open
-      centerTimelineOnNow();
-    }
-  }));
+const tabButtons = [...document.querySelectorAll(".tab-btn")];
+function activateTab(btn, moveFocus = false) {
+  for (const candidate of tabButtons) {
+    const selected = candidate === btn;
+    candidate.classList.toggle("active", selected);
+    candidate.setAttribute("aria-selected", String(selected));
+    candidate.tabIndex = selected ? 0 : -1;
+  }
+  document.querySelectorAll(".tab-panel").forEach(panel =>
+    panel.classList.toggle("active", panel.id === "tab-" + btn.dataset.tab));
+  if (moveFocus) btn.focus();
+  if (btn.dataset.tab === "planner") {
+    renderTimeline(); // fresh now-line on open
+    centerTimelineOnNow();
+  }
+}
+for (const btn of tabButtons) {
+  btn.addEventListener("click", () => activateTab(btn));
+  btn.addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const index = tabButtons.indexOf(btn);
+    const next = event.key === "Home" ? tabButtons[0]
+      : event.key === "End" ? tabButtons.at(-1)
+      : tabButtons[(index + (event.key === "ArrowRight" ? 1 : -1) + tabButtons.length) % tabButtons.length];
+    activateTab(next, true);
+  });
+}
 
 document.getElementById("habit-form").addEventListener("submit", e => {
   e.preventDefault();
@@ -1487,6 +1572,68 @@ document.getElementById("settings-close").addEventListener("click", () =>
   document.getElementById("settings-overlay").classList.add("hidden"));
 document.getElementById("settings-overlay").addEventListener("click", e => {
   if (e.target.id === "settings-overlay") e.target.classList.add("hidden");
+});
+
+document.getElementById("export-data-btn").addEventListener("click", () => {
+  const backup = JSON.stringify({
+    app: "Habitloom",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    state,
+  }, null, 2);
+  const url = URL.createObjectURL(new Blob([backup], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `habitloom-backup-${todayKey()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  showToast("Backup exported.");
+});
+
+document.getElementById("import-data-btn").addEventListener("click", () =>
+  document.getElementById("import-data-file").click());
+document.getElementById("import-data-file").addEventListener("change", async event => {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const imported = parsed?.state || parsed;
+    const valid = imported && typeof imported === "object"
+      && Array.isArray(imported.habits)
+      && Array.isArray(imported.entries || [])
+      && imported.tasksByDate && typeof imported.tasksByDate === "object"
+      && Object.values(imported.tasksByDate).every(Array.isArray);
+    if (!valid) throw new Error("This file is not a valid Habitloom backup.");
+    if (!confirm("Importing this backup will replace the data currently in Habitloom on this account. Continue?")) return;
+    const restored = JSON.parse(JSON.stringify(imported));
+    restored.resetAt = Date.now(); // the restored snapshot must win the next cloud merge
+    adoptExternalState(restored, true);
+    document.getElementById("settings-overlay").classList.add("hidden");
+    showToast("Backup restored and queued for sync.");
+  } catch (error) {
+    alert(error.message || "Habitloom could not read that backup.");
+  }
+});
+
+// Escape closes the top-most dialog, matching normal desktop and mobile-web expectations.
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  const overlays = [...document.querySelectorAll(".overlay:not(.hidden)")];
+  const overlay = overlays.at(-1);
+  if (!overlay) return;
+  const closeButtons = {
+    "activity-edit-overlay": "activity-edit-close",
+    "category-delete-overlay": "category-delete-cancel",
+    "categories-overlay": "categories-close",
+    "settings-overlay": "settings-close",
+    "why-overlay": "why-close",
+    "wizard-overlay": "wizard-close",
+  };
+  document.getElementById(closeButtons[overlay.id])?.click();
 });
 
 document.getElementById("reset-account-btn").addEventListener("click", () => {

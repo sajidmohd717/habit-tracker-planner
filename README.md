@@ -4,9 +4,9 @@
 
 **Live app: [sajidmohd717.github.io/habit-tracker-planner](https://sajidmohd717.github.io/habit-tracker-planner/)**
 
-An all-round self-improvement app in one page: build habits one at a time, plan your day realistically, and find out where your time *actually* goes. No accounts, no ads, no backend — everything lives in your browser.
+An all-round self-improvement app in one page: build habits one at a time, plan your day realistically, and find out where your time *actually* goes. No account is required: everything works locally in your browser, with optional Google sign-in for cross-device sync.
 
-> Currently a small hobby project for personal self-improvement. If you stumbled across this repo — welcome! Try it, break it, open an issue.
+> Habitloom is local-first and free to use. If something feels off, please open an issue—real-world feedback makes the tracker better.
 
 ## Motivation
 
@@ -55,6 +55,8 @@ Plan the day, live the day, then compare intention against reality — all in on
 ### Things to know
 - **Local-first.** Everything is stored in your browser's `localStorage` and works fully offline with no account.
 - **Optional cloud sync.** If the deployment has Firebase configured, a *Sign in with Google* button appears — signing in syncs your habits, plans, and tracked time across devices, live. On first sign-in, local and cloud data are merged so no progress is lost on either side.
+- **Visible sync state.** The header shows whether your data is local-only, syncing, synced, offline, or needs attention.
+- **Portable backups.** Settings includes JSON export and import, so you can keep a separate copy or restore your data later.
 - **Safe sign-out.** The app first flushes the latest activity switch, then removes signed-in data from that browser while keeping the cloud copy. If the final sync cannot complete, the local copy is kept to avoid data loss.
 - Without sign-in, data is **per-browser, per-device**, and clearing browser data erases it.
 
@@ -112,11 +114,11 @@ tests/              # merge, deletion-tombstone, and category-migration regressi
 
 - [ ] "Today" dashboard combining habits, next planned block, and running timer
 - [ ] Overlay tracked time onto the planner timeline (plan vs. reality)
-- [ ] Habit history heatmap (GitHub-contributions style)
+- [x] Habit history heatmap (GitHub-contributions style)
 - [ ] Browser notifications for daily check-in reminders
 - [ ] Drag-to-reschedule blocks on the timeline
 - [ ] Weekly/monthly time reports
-- [ ] Data export/import (JSON)
+- [x] Data export/import (JSON)
 - [x] Optional sync across devices (Google sign-in + Firestore)
 
 ## Contributing

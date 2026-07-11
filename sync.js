@@ -4,12 +4,21 @@
    converge instead of silently overwriting one another. */
 
 const authArea = document.getElementById("auth-area");
+const syncStatus = document.getElementById("sync-status");
+
+function setSyncStatus(label, state = "local") {
+  if (!syncStatus) return;
+  syncStatus.textContent = label;
+  syncStatus.dataset.state = state;
+}
 
 if (!window.FIREBASE_CONFIG) {
   authArea.classList.add("hidden");
 } else {
+  setSyncStatus("Connecting…", "syncing");
   initSync().catch(error => {
     console.error("Cloud sync could not start:", error);
+    setSyncStatus("Sync unavailable", "error");
     const button = document.getElementById("sign-in-btn");
     button.disabled = true;
     button.textContent = "Cloud sync unavailable";
@@ -44,6 +53,7 @@ async function initSync() {
 
   signInBtn.addEventListener("click", async () => {
     signInBtn.disabled = true;
+    setSyncStatus("Signing in…", "syncing");
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (error) {
@@ -52,6 +62,7 @@ async function initSync() {
       }
     } finally {
       signInBtn.disabled = false;
+      if (!auth.currentUser) setSyncStatus("Local only", "local");
     }
   });
 
@@ -90,7 +101,12 @@ async function initSync() {
     userInfo.classList.toggle("hidden", !nextUser);
     clearTimeout(pushTimer);
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-    if (!nextUser) return;
+    if (!nextUser) {
+      setSyncStatus("Local only", "local");
+      return;
+    }
+
+    setSyncStatus(navigator.onLine ? "Syncing…" : "Offline", navigator.onLine ? "syncing" : "offline");
 
     userInfo.textContent = nextUser.displayName || nextUser.email || "Signed in";
     const uid = nextUser.uid;
@@ -103,8 +119,10 @@ async function initSync() {
       // A previous account's local data must never be merged into this account.
       adoptState(switchingAccounts ? synced : window.__mergeStates(state, synced));
       localStorage.setItem("opb-last-uid", uid);
+      setSyncStatus("Synced", "synced");
     } catch (error) {
       console.error("Initial sync failed:", error);
+      setSyncStatus(navigator.onLine ? "Sync issue" : "Offline", navigator.onLine ? "error" : "offline");
     }
     if (epoch !== authEpoch || user?.uid !== uid) return;
 
@@ -114,10 +132,14 @@ async function initSync() {
       if (!data || data.clientId === clientId || !data.state) return;
       try {
         adoptState(window.__mergeStates(state, JSON.parse(data.state)));
+        setSyncStatus("Synced", "synced");
       } catch (error) {
         console.error("Ignored an invalid cloud update:", error);
       }
-    }, error => console.error("Live sync stopped:", error));
+    }, error => {
+      console.error("Live sync stopped:", error);
+      setSyncStatus(navigator.onLine ? "Sync issue" : "Offline", navigator.onLine ? "error" : "offline");
+    });
   });
 
   function adoptState(next) {
@@ -151,9 +173,13 @@ async function initSync() {
   function pushNow() {
     if (!user) return Promise.resolve();
     const uid = user.uid;
+    setSyncStatus(navigator.onLine ? "Syncing…" : "Offline", navigator.onLine ? "syncing" : "offline");
     pushQueue = pushQueue.catch(() => {}).then(async () => {
       const synced = await syncTransaction(uid, "merge");
-      if (user?.uid === uid) adoptState(window.__mergeStates(state, synced));
+      if (user?.uid === uid) {
+        adoptState(window.__mergeStates(state, synced));
+        setSyncStatus("Synced", "synced");
+      }
     });
     return pushQueue;
   }
@@ -163,11 +189,17 @@ async function initSync() {
     if (!user || suppressPush) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
-      pushNow().catch(error => console.error("Sync push failed:", error));
+      pushNow().catch(error => {
+        console.error("Sync push failed:", error);
+        setSyncStatus(navigator.onLine ? "Sync issue" : "Offline", navigator.onLine ? "error" : "offline");
+      });
     }, 500);
   });
 
   window.addEventListener("online", () => {
     if (user) pushNow().catch(error => console.error("Reconnect sync failed:", error));
+  });
+  window.addEventListener("offline", () => {
+    if (user) setSyncStatus("Offline", "offline");
   });
 }
