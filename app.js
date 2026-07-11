@@ -8,9 +8,10 @@ const DAY_START_HOUR = 6;  // timeline shows 6:00 – 23:00
 const DAY_END_HOUR = 23;
 const PX_PER_ROW = 56;
 const ensureCategoryState = window.__ensureCategoryState;
-// zoom: 0 = 1-hour rows, 1 = 30-minute rows (device preference, not synced)
-let timelineZoom = Number(localStorage.getItem("opb-zoom")) || 0;
-function rowMinutes() { return timelineZoom === 1 ? 30 : 60; }
+// zoom: 0 = 1-hour rows, 1 = 30-minute rows, 2 = 15-minute rows
+// (a device preference, not synced)
+let timelineZoom = Math.min(2, Math.max(0, Number(localStorage.getItem("opb-zoom")) || 0));
+function rowMinutes() { return [60, 30, 15][timelineZoom]; }
 function pxPerHour() { return (60 / rowMinutes()) * PX_PER_ROW; }
 
 let state = load();
@@ -472,24 +473,46 @@ function renderTimeline() {
   const timeline = document.getElementById("timeline");
   const empty = document.getElementById("tasks-empty");
   const tasks = todaysTasks().slice().sort((a, b) => a.startMin - b.startMin);
+  const dayStart = dayStartMs();
+  const nextMidnight = new Date(dayStart);
+  nextMidnight.setDate(nextMidnight.getDate() + 1);
+  const dayEnd = nextMidnight.getTime();
+  const actual = entriesToday().map(entry => {
+    const start = Math.max(entry.start, dayStart);
+    const end = Math.min(entry.end === null ? Date.now() : entry.end, dayEnd);
+    return {
+      entry,
+      start,
+      end,
+      startMin: start === dayStart ? 0 : localMinuteOfDay(start),
+      endMin: end === dayEnd ? 1440 : localMinuteOfDay(end),
+    };
+  }).filter(item => item.end > item.start).sort((a, b) => a.start - b.start);
+  const hasTimeline = tasks.length > 0 || actual.length > 0;
 
-  empty.classList.toggle("hidden", tasks.length > 0);
-  timeline.classList.toggle("empty", tasks.length === 0);
+  empty.classList.toggle("hidden", hasTimeline);
+  timeline.classList.toggle("empty", !hasTimeline);
+  document.querySelector(".timeline-lane-head")?.classList.toggle("hidden", !hasTimeline);
   timeline.innerHTML = "";
-  if (!tasks.length) return;
+  if (!hasTimeline) return;
 
-  // expand visible range if a task falls outside default hours
+  // Expand the visible range when either a plan or real activity falls outside
+  // the default day. Both lanes always share the same vertical time scale.
   let startHour = DAY_START_HOUR, endHour = DAY_END_HOUR;
   for (const t of tasks) {
     startHour = Math.min(startHour, Math.floor(t.startMin / 60));
     endHour = Math.max(endHour, Math.ceil((t.startMin + t.durMin) / 60));
+  }
+  for (const item of actual) {
+    startHour = Math.min(startHour, Math.floor(item.startMin / 60));
+    endHour = Math.max(endHour, Math.ceil(item.endMin / 60));
   }
   startHour = Math.max(0, startHour);
   endHour = Math.min(24, endHour);
 
   for (let m = startHour * 60; m < endHour * 60; m += rowMinutes()) {
     const row = document.createElement("div");
-    row.className = "hour-row" + (m % 60 !== 0 ? " half" : "");
+    row.className = "hour-row" + (m % 60 === 0 ? "" : m % 30 === 0 ? " half" : " quarter");
     row.innerHTML = `<div class="hour-label">${fmtTime(m)}</div>`;
     timeline.appendChild(row);
   }
@@ -520,7 +543,7 @@ function renderTimeline() {
   }
 
   const layer = document.createElement("div");
-  layer.className = "blocks-layer";
+  layer.className = "blocks-layer plan-layer";
   layer.style.height = `${(endHour - startHour) * pxPerHour()}px`;
   for (const t of tasks) {
     const top = ((t.startMin - startHour * 60) / 60) * pxPerHour();
@@ -547,6 +570,29 @@ function renderTimeline() {
     layer.appendChild(block);
   }
   timeline.appendChild(layer);
+
+  const actualLayer = document.createElement("div");
+  actualLayer.className = "blocks-layer actual-layer";
+  actualLayer.style.height = `${(endHour - startHour) * pxPerHour()}px`;
+  for (const item of actual) {
+    const { entry } = item;
+    const top = ((item.startMin - startHour * 60) / 60) * pxPerHour();
+    const height = Math.max(22, ((item.endMin - item.startMin) / 60) * pxPerHour() - 2);
+    const category = categoryById(entry.categoryId);
+    const block = document.createElement("button");
+    block.type = "button";
+    block.className = "time-block actual-block" + (entry.end === null ? " running" : "") + (height < 38 ? " compact" : "");
+    block.dataset.editTimelineEntry = entry.id;
+    block.style.top = `${top}px`;
+    block.style.height = `${height}px`;
+    block.setAttribute("aria-label", `Edit tracked activity ${entry.name}, ${fmtClock(item.start)} to ${entry.end === null ? "now" : fmtClock(item.end)}`);
+    applyCategoryColor(block, category);
+    block.innerHTML = `<span class="block-title"></span><span class="block-time"></span>`;
+    block.querySelector(".block-title").textContent = entry.name;
+    block.querySelector(".block-time").textContent = `${fmtClock(item.start)} – ${entry.end === null ? "now" : fmtClock(item.end)}`;
+    actualLayer.appendChild(block);
+  }
+  timeline.appendChild(actualLayer);
 
   // "you are here" line, like Google Calendar's red now-indicator
   const now = new Date();
@@ -789,6 +835,10 @@ function fmtClock(ms) {
   const d = new Date(ms);
   return fmtTime(d.getHours() * 60 + d.getMinutes());
 }
+function localMinuteOfDay(ms) {
+  const d = new Date(ms);
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+}
 
 function renderTracker() {
   const running = runningEntry();
@@ -918,6 +968,7 @@ function renderTracker() {
       legend.appendChild(item);
     }
   }
+  renderTimeline();
 }
 
 // Update only live numbers while tracking. Rebuilding the whole tracker every
@@ -1419,21 +1470,23 @@ document.getElementById("habit-list").addEventListener("click", e => {
 document.getElementById("timeline").addEventListener("click", e => {
   const toggle = e.target.closest("[data-toggle]");
   const remove = e.target.closest("[data-remove]");
+  const tracked = e.target.closest("[data-edit-timeline-entry]");
   if (toggle) toggleTaskDone(toggle.dataset.toggle);
   if (remove) deleteTask(remove.dataset.remove);
+  if (tracked) openActivityEditor(tracked.dataset.editTimelineEntry);
 });
 
 function setZoom(z) {
-  timelineZoom = z;
-  localStorage.setItem("opb-zoom", String(z));
-  document.getElementById("zoom-in").disabled = z === 1;
-  document.getElementById("zoom-out").disabled = z === 0;
-  document.getElementById("zoom-label").textContent = z === 1 ? "30m" : "1h";
+  timelineZoom = Math.min(2, Math.max(0, z));
+  localStorage.setItem("opb-zoom", String(timelineZoom));
+  document.getElementById("zoom-in").disabled = timelineZoom === 2;
+  document.getElementById("zoom-out").disabled = timelineZoom === 0;
+  document.getElementById("zoom-label").textContent = ["1 hour", "30 min", "15 min"][timelineZoom];
   renderTimeline();
   centerTimelineOnNow();
 }
-document.getElementById("zoom-in").addEventListener("click", () => setZoom(1));
-document.getElementById("zoom-out").addEventListener("click", () => setZoom(0));
+document.getElementById("zoom-in").addEventListener("click", () => setZoom(timelineZoom + 1));
+document.getElementById("zoom-out").addEventListener("click", () => setZoom(timelineZoom - 1));
 
 document.getElementById("open-task-wizard").addEventListener("click", () => wizard.open());
 document.getElementById("wizard-close").addEventListener("click", () => wizard.close());
@@ -1553,7 +1606,7 @@ document.getElementById("why-close").addEventListener("click", () => {
 });
 
 document.getElementById("running-bar-switch").addEventListener("click", () => {
-  document.querySelector('[data-tab="tracker"]').click();
+  document.querySelector('[data-tab="planner"]').click();
   document.getElementById("track-name").focus();
 });
 document.getElementById("running-bar-edit").addEventListener("click", () => {

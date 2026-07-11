@@ -6,7 +6,7 @@
   <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
   <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
   <header class="app-header">
@@ -23,8 +23,7 @@
     <p class="tagline">Weave a better you — habits, plans, and honest time, 1% a day.</p>
     <nav class="tabs" role="tablist" aria-label="Habitloom sections">
       <button id="tab-button-habits" class="tab-btn active" data-tab="habits" role="tab" aria-selected="true" aria-controls="tab-habits" tabindex="0">Habits</button>
-      <button id="tab-button-planner" class="tab-btn" data-tab="planner" role="tab" aria-selected="false" aria-controls="tab-planner" tabindex="-1">Planner</button>
-      <button id="tab-button-tracker" class="tab-btn" data-tab="tracker" role="tab" aria-selected="false" aria-controls="tab-tracker" tabindex="-1">Tracker</button>
+      <button id="tab-button-planner" class="tab-btn" data-tab="planner" role="tab" aria-selected="false" aria-controls="tab-planner" tabindex="-1">Day</button>
     </nav>
   </header>
 
@@ -74,47 +73,49 @@
     <p id="habits-empty" class="empty-msg">No habits yet. Start with one small habit — that's the whole idea.</p>
   </main>
 
-  <!-- ============ PLANNER TAB ============ -->
+  <!-- ============ UNIFIED DAY TAB ============ -->
   <main id="tab-planner" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-planner">
-    <section class="card">
+    <section class="day-hero">
       <div class="planner-head">
-        <h2>Today's plan <span id="today-date" class="muted"></span></h2>
-        <button id="open-task-wizard" class="btn primary">+ Add task</button>
+        <div>
+          <span class="eyebrow">Plan it. Live it. Learn from it.</span>
+          <h2>Your day <span id="today-date"></span></h2>
+          <p>See what you intended beside what actually happened.</p>
+        </div>
+        <div class="day-actions">
+          <button id="manage-categories-btn" class="btn category-manage-btn">Categories</button>
+          <button id="open-task-wizard" class="btn primary">+ Add plan</button>
+        </div>
       </div>
       <p id="next-up" class="next-up hidden"></p>
     </section>
 
-    <section class="card timeline-card">
-      <div class="zoom-controls">
-        <button id="zoom-out" class="btn ghost zoom-btn" title="Zoom out (1-hour rows)" aria-label="Zoom timeline out">−</button>
-        <span id="zoom-label" class="muted">1h</span>
-        <button id="zoom-in" class="btn ghost zoom-btn" title="Zoom in (30-minute rows)" aria-label="Zoom timeline in">+</button>
+    <section class="card tracker-compose-card day-track-card">
+      <div class="compose-heading">
+        <div><span class="section-kicker">Track now</span><h2>What are you doing?</h2></div>
+        <p>Starting something new closes the previous activity automatically.</p>
       </div>
-      <div id="timeline" class="timeline"></div>
-      <p id="tasks-empty" class="empty-msg">Nothing planned yet. Add a task and give it a time slot.</p>
-    </section>
-  </main>
-
-  <!-- ============ TRACKER TAB ============ -->
-  <main id="tab-tracker" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-tracker">
-    <section class="tracker-hero">
-      <div>
-        <span class="eyebrow">Your time, made visible</span>
-        <h2>Where is your day going?</h2>
-        <p>Switch activities as you move through the day. Every switch closes the previous activity automatically.</p>
-      </div>
-      <button id="manage-categories-btn" class="btn category-manage-btn">Manage categories</button>
-    </section>
-
-    <section class="card tracker-compose-card">
-      <div class="section-kicker">Start your next activity</div>
       <form id="track-form" class="track-form">
-        <input type="text" id="track-name" placeholder="e.g. Watching YouTube" maxlength="80" required>
+        <input type="text" id="track-name" placeholder="e.g. Focused work" maxlength="80" required>
         <select id="track-category" aria-label="Activity category"></select>
         <button type="submit" class="btn primary tracker-start-btn">Start tracking</button>
       </form>
-      <div class="recent-label">Quick restart</div>
+      <div class="recent-label">Quick switch</div>
       <div id="recent-chips" class="chips"></div>
+    </section>
+
+    <section class="card timeline-card">
+      <div class="timeline-card-head">
+        <div><span class="section-kicker">Plan vs actual</span><h2>Today's timeline</h2></div>
+        <div class="zoom-controls" aria-label="Timeline zoom">
+          <button id="zoom-out" class="btn ghost zoom-btn" title="Show less detail" aria-label="Zoom timeline out">−</button>
+          <span id="zoom-label" class="zoom-label" aria-live="polite">1 hour</span>
+          <button id="zoom-in" class="btn ghost zoom-btn" title="Show more detail" aria-label="Zoom timeline in">+</button>
+        </div>
+      </div>
+      <div class="timeline-lane-head" aria-hidden="true"><span></span><strong>Plan</strong><strong>Actual</strong></div>
+      <div id="timeline" class="timeline"></div>
+      <p id="tasks-empty" class="empty-msg">Your day is still open. Add a plan or start tracking to build the timeline.</p>
     </section>
 
     <section class="card tracker-insights-card">
@@ -132,7 +133,7 @@
 
     <section class="card tracker-entries-card">
       <div class="entries-head">
-        <div><span class="section-kicker">Timeline</span><h2>Today's activities</h2></div>
+        <div><span class="section-kicker">Activity details</span><h2>Tracked history</h2></div>
       </div>
       <div id="entry-list" class="entry-list"></div>
       <p id="entries-empty" class="empty-msg">No entries yet.</p>
@@ -317,9 +318,9 @@
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="firebase-config.js"></script>
-  <script src="category-model.js?v=9"></script>
-  <script src="state-merge.js?v=9"></script>
-  <script src="app.js?v=9"></script>
-  <script type="module" src="sync.js?v=9"></script>
+  <script src="category-model.js?v=10"></script>
+  <script src="state-merge.js?v=10"></script>
+  <script src="app.js?v=10"></script>
+  <script type="module" src="sync.js?v=10"></script>
 </body>
 </html>

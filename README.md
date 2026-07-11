@@ -28,7 +28,9 @@ Plan the day, live the day, then compare intention against reality — all in on
 
 ### 📅 Day Planner
 - Add a task through a short wizard: **what** → **how long (estimated)** → **anything you're forgetting?** (optional travel/prep/cleanup blocks before and after) → **when to start**.
-- Everything renders on a **calendar-style day timeline** — your main tasks in blue, the surrounding travel/prep blocks in amber.
+- Planning and tracking live together on one **Day tab**, so there is no need to jump between two separate timelines.
+- Everything renders on a **calendar-style Plan vs Actual timeline** — planned tasks in one lane and tracked activities in the other.
+- Zoom between **1-hour, 30-minute, and 15-minute rows** when you need more detail.
 - Check off blocks as you complete them, or remove them. Each day starts with a fresh plan.
 
 ### ⏱ Time Tracker
@@ -39,6 +41,7 @@ Plan the day, live the day, then compare intention against reality — all in on
 - **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
 - **Editable timeline** — correct the running activity or any completed activity's name, category, start time, and end time. Adjacent boundaries move with the edit so the timeline stays continuous.
+- Tracked activities also appear in the shared day calendar and can be opened for editing directly from the **Actual** lane.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
 - **"Where your time went today"** — a color-coded breakdown with totals and percentages for every category.
 - **Recent activity chips** — restart a past activity with one tap.
@@ -47,8 +50,8 @@ Plan the day, live the day, then compare intention against reality — all in on
 
 1. **Open the [live app](https://sajidmohd717.github.io/habit-tracker-planner/)** — no sign-up needed.
 2. **Start with ONE habit.** Add it on the Habits tab. Every day you keep it, hit *Continue streak*.
-3. **Plan tomorrow the night before (or your day in the morning).** On the Planner tab, add each task with an honest time estimate. When the wizard asks about before/after time — take it seriously; that's where plans usually fall apart.
-4. **Track as you go.** On the Tracker tab, start the next activity whenever you switch; doing so ends the previous activity automatically. For gaps, switch to a break or downtime activity rather than stopping the timeline. Be honest with the categories — knowing how much time went to time wasters is the whole point.
+3. **Plan tomorrow the night before (or your day in the morning).** On the Day tab, add each task with an honest time estimate. When the wizard asks about before/after time — take it seriously; that's where plans usually fall apart.
+4. **Track as you go on the same Day tab.** Start the next activity whenever you switch; doing so ends the previous activity automatically. The calendar shows your plan beside reality. For gaps, switch to a break or downtime activity rather than stopping the timeline.
 5. **Review at night.** How much of the bar is green? Did reality match the plan? Adjust tomorrow accordingly.
 6. **After a week of consistency**, the app will nudge you to stack your next habit.
 
@@ -113,7 +116,7 @@ tests/              # merge, deletion-tombstone, and category-migration regressi
 ## Roadmap / Ideas
 
 - [ ] "Today" dashboard combining habits, next planned block, and running timer
-- [ ] Overlay tracked time onto the planner timeline (plan vs. reality)
+- [x] Show planned and tracked time together (plan vs. reality)
 - [x] Habit history heatmap (GitHub-contributions style)
 - [ ] Browser notifications for daily check-in reminders
 - [ ] Drag-to-reschedule blocks on the timeline
