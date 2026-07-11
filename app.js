@@ -569,8 +569,10 @@ function categorySignature() {
 
 function refreshCategorySelect(select, preferredId) {
   const categories = activeCategories();
-  const signature = categorySignature();
   const previous = preferredId || select.value;
+  const preferred = state.categories.find(category => category.id === previous);
+  if (preferred?.archived) categories.push(preferred);
+  const signature = categorySignature() + "|include:" + (preferred?.archived ? preferred.id : "");
   if (select.dataset.categorySignature !== signature) {
     select.innerHTML = "";
     for (const category of categories) {
@@ -676,7 +678,7 @@ function applyCategoryColor(element, category) {
 
 // entry: { id, name, categoryId, start (ms), end (ms|null) }
 // Always the NEWEST running entry — duplicates from sync races must not
-// steer the tracking bar or the "are you still on this?" check.
+// steer the tracking bar or activity editor.
 function runningEntry() {
   let r = null;
   for (const e of state.entries) {
@@ -756,7 +758,6 @@ function fmtClock(ms) {
 function renderTracker() {
   const running = runningEntry();
   refreshCategorySelect(document.getElementById("track-category"));
-  refreshCategorySelect(document.getElementById("fix-label"));
 
   // persistent bar (visible on every tab)
   const bar = document.getElementById("running-bar");
@@ -830,7 +831,10 @@ function renderTracker() {
       <span class="entry-main"><span class="entry-name"></span><span class="entry-category"></span></span>
       <span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span>
       <span class="entry-dur">${fmtElapsed(dur)}</span>
-      ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}`;
+      <span class="entry-actions">
+        <button class="btn ghost" data-edit-entry="${e.id}" title="Edit activity">Edit</button>
+        ${isRunning ? "" : `<button class="btn ghost" data-del-entry="${e.id}" title="Delete entry">✕</button>`}
+      </span>`;
     const nameEl = row.querySelector(".entry-name");
     nameEl.textContent = e.name + " ";
     if (isRunning) nameEl.innerHTML += `<span class="entry-running">● tracking</span>`;
@@ -1086,93 +1090,95 @@ function addCategory(name, color) {
 // live tick while a timer runs (updates bar, entry durations, summary)
 setInterval(() => { if (runningEntry()) renderTracker(); }, 1000);
 
-/* ---------- long-running check: "are you still on this?" ---------- */
+/* ---------- activity editor ---------- */
 
-const CHECK_AFTER_MS = 3 * 3600000; // ask once an activity passes 3 hours
-let checkEntryId = null; // the entry the open modal is asking about
+let editingEntryId = null;
 
-// the modal's answer only applies if the same entry is still the running one
-// (a sync from another device may have switched activities meanwhile)
-function checkTarget() {
-  const r = runningEntry();
-  return r && r.id === checkEntryId ? r : null;
+function datetimeLocalValue(ms) {
+  const date = new Date(ms);
+  const part = value => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`
+    + `T${part(date.getHours())}:${part(date.getMinutes())}:${part(date.getSeconds())}`;
 }
 
-function checkLongRunning() {
-  const r = runningEntry();
-  if (!r) return;
-  const elapsed = Date.now() - r.start;
-  if (elapsed < CHECK_AFTER_MS) return;
-  // don't nag: re-ask only after another full interval since the last answer
-  if (r.lastCheckAck && Date.now() - r.lastCheckAck < CHECK_AFTER_MS) return;
-  if (!document.getElementById("check-overlay").classList.contains("hidden")) return;
-  checkEntryId = r.id;
-  document.getElementById("check-question").innerHTML =
-    `You've been on <strong></strong> for <strong>${fmtDuration(Math.round(elapsed / 60000))}</strong> — is that right?`;
-  document.getElementById("check-question").querySelector("strong").textContent = r.name;
-  document.getElementById("check-ask").classList.remove("hidden");
-  document.getElementById("check-fix").classList.add("hidden");
-  document.getElementById("check-overlay").classList.remove("hidden");
+function closeActivityEditor() {
+  editingEntryId = null;
+  document.getElementById("activity-edit-overlay").classList.add("hidden");
 }
 
-function closeCheck() {
-  document.getElementById("check-overlay").classList.add("hidden");
+function openActivityEditor(id) {
+  const entry = state.entries.find(item => item.id === id);
+  if (!entry) return;
+  editingEntryId = id;
+  const running = entry.end === null;
+  document.getElementById("activity-edit-kind").textContent = running ? "Currently tracking" : "Completed activity";
+  document.getElementById("activity-edit-name").value = entry.name;
+  const categorySelect = document.getElementById("activity-edit-category");
+  refreshCategorySelect(categorySelect, entry.categoryId);
+  document.getElementById("activity-edit-start").value = datetimeLocalValue(entry.start);
+  document.getElementById("activity-edit-end-row").classList.toggle("hidden", running);
+  document.getElementById("activity-edit-end").value = running ? "" : datetimeLocalValue(entry.end);
+  document.getElementById("activity-edit-overlay").classList.remove("hidden");
+  document.getElementById("activity-edit-name").focus();
 }
 
-document.getElementById("check-still").addEventListener("click", () => {
-  const r = checkTarget();
-  if (r) { r.lastCheckAck = Date.now(); touch(r, r.lastCheckAck); save(); }
-  closeCheck();
-});
+function saveActivityEdit() {
+  const entry = state.entries.find(item => item.id === editingEntryId);
+  if (!entry) { closeActivityEditor(); return; }
+  const name = document.getElementById("activity-edit-name").value.trim();
+  const categoryId = document.getElementById("activity-edit-category").value;
+  const start = new Date(document.getElementById("activity-edit-start").value).getTime();
+  const running = entry.end === null;
+  const end = running ? null : new Date(document.getElementById("activity-edit-end").value).getTime();
+  const now = Date.now();
+  if (!name) { alert("Give the activity a name."); return; }
+  if (!Number.isFinite(start) || (!running && !Number.isFinite(end))) {
+    alert("Choose valid start and end times.");
+    return;
+  }
+  if (start >= (running ? now : end)) {
+    alert(running ? "The start time must be before now." : "The start time must be before the end time.");
+    return;
+  }
+  if (!running && end > now) { alert("An activity cannot end in the future."); return; }
 
-document.getElementById("check-switched").addEventListener("click", () => {
-  const r = checkTarget();
-  if (!r) { closeCheck(); return; } // entry changed under us — question is moot
-  document.getElementById("check-ask").classList.add("hidden");
-  document.getElementById("check-fix").classList.remove("hidden");
-  const guess = new Date(); // default guess: halfway through the running entry
-  guess.setTime(r.start + (Date.now() - r.start) / 2);
-  document.getElementById("fix-time").value =
-    `${String(guess.getHours()).padStart(2, "0")}:${String(guess.getMinutes()).padStart(2, "0")}`;
-  document.getElementById("fix-name").value = "";
-  document.getElementById("fix-name").focus();
-});
+  const ordered = [...state.entries].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  const index = ordered.findIndex(item => item.id === entry.id);
+  const previous = index > 0 ? ordered[index - 1] : null;
+  const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
+  if (previous && start <= previous.start) {
+    alert(`The start must stay after “${previous.name}” began.`);
+    return;
+  }
+  if (!running && next) {
+    const nextEnd = next.end === null ? now : next.end;
+    if (end >= nextEnd) {
+      alert(`The end must stay before “${next.name}” finishes.`);
+      return;
+    }
+  }
 
-document.getElementById("fix-cancel").addEventListener("click", () => {
-  document.getElementById("check-fix").classList.add("hidden");
-  document.getElementById("check-ask").classList.remove("hidden");
-});
-
-document.getElementById("fix-save").addEventListener("click", () => {
-  const r = checkTarget();
-  if (!r) { closeCheck(); return; } // entry changed under us — don't split the wrong one
-  const name = document.getElementById("fix-name").value.trim();
-  if (!name) { alert("What have you been doing? A rough answer is fine."); return; }
-  const categoryId = document.getElementById("fix-label").value;
-  const [hh, mm] = document.getElementById("fix-time").value.split(":").map(Number);
-  // interpret the time as the most recent occurrence of HH:MM
-  let switchAt = new Date();
-  switchAt.setHours(hh, mm, 0, 0);
-  if (switchAt.getTime() > Date.now()) switchAt.setDate(switchAt.getDate() - 1);
-  let ts = switchAt.getTime();
-  if (ts <= r.start) ts = r.start + 60000; // keep at least a minute on the old entry
-  r.end = ts;
-  touch(r);
-  state.entries.push(touch({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name, categoryId,
-    start: ts,
-    end: null,
-  }));
+  const editedAt = Date.now();
+  entry.name = name.slice(0, 80);
+  entry.categoryId = categoryId;
+  entry.start = start;
+  if (!running) entry.end = end;
+  entry.editedAt = editedAt;
+  touch(entry, editedAt);
+  if (previous) {
+    previous.end = start;
+    previous.editedAt = editedAt;
+    touch(previous, editedAt);
+  }
+  if (!running && next) {
+    next.start = end;
+    next.editedAt = editedAt;
+    touch(next, editedAt);
+  }
   save();
   renderTracker();
-  closeCheck();
-});
-
-// run the check when the app opens, regains focus, or becomes visible again
-document.addEventListener("visibilitychange", () => { if (!document.hidden) checkLongRunning(); });
-window.addEventListener("focus", checkLongRunning);
-setInterval(checkLongRunning, 60000); // and once a minute while the app stays open
+  closeActivityEditor();
+}
 
 /* ============================================================
    TASK WIZARD (multi-step modal)
@@ -1322,7 +1328,7 @@ document.getElementById("need-after").addEventListener("change", e =>
   document.getElementById("after-fields").classList.toggle("hidden", !e.target.checked));
 
 enhanceCategorySelect(document.getElementById("track-category"));
-enhanceCategorySelect(document.getElementById("fix-label"));
+enhanceCategorySelect(document.getElementById("activity-edit-category"));
 enhanceCategorySelect(document.getElementById("category-delete-target"));
 
 document.getElementById("track-form").addEventListener("submit", e => {
@@ -1397,8 +1403,17 @@ document.getElementById("category-form").addEventListener("submit", event => {
 });
 
 document.getElementById("entry-list").addEventListener("click", e => {
+  const edit = e.target.closest("[data-edit-entry]");
   const del = e.target.closest("[data-del-entry]");
+  if (edit) openActivityEditor(edit.dataset.editEntry);
   if (del) deleteEntry(del.dataset.delEntry);
+});
+
+document.getElementById("activity-edit-close").addEventListener("click", closeActivityEditor);
+document.getElementById("activity-edit-cancel").addEventListener("click", closeActivityEditor);
+document.getElementById("activity-edit-save").addEventListener("click", saveActivityEdit);
+document.getElementById("activity-edit-overlay").addEventListener("click", event => {
+  if (event.target.id === "activity-edit-overlay") closeActivityEditor();
 });
 
 // no stop button — switching activities is the only way to end tracking
@@ -1420,6 +1435,10 @@ document.getElementById("why-close").addEventListener("click", () => {
 document.getElementById("running-bar-switch").addEventListener("click", () => {
   document.querySelector('[data-tab="tracker"]').click();
   document.getElementById("track-name").focus();
+});
+document.getElementById("running-bar-edit").addEventListener("click", () => {
+  const running = runningEntry();
+  if (running) openActivityEditor(running.id);
 });
 
 document.getElementById("today-date").textContent =
@@ -1459,4 +1478,3 @@ reconcileHabits();
 renderHabits();
 setZoom(timelineZoom); // also renders the timeline
 renderTracker();
-checkLongRunning();

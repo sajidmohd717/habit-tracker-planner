@@ -28,9 +28,10 @@
     // the two devices' clocks disagree about updatedAt.
     if (a.end === null && b.end !== null) return { ...b };
     if (b.end === null && a.end !== null) return { ...a };
-    if (a.end !== null && b.end !== null && a.end !== b.end) {
-      return { ...(a.end < b.end ? a : b), end: Math.min(a.end, b.end) };
-    }
+    // Completed entries can be manually edited, including extending their end
+    // time. The newest revision wins; neighbouring entries then restore a
+    // continuous, non-overlapping timeline below.
+    if (a.end !== null && b.end !== null) return newerCopy(a, b);
     return newerCopy(a, b);
   }
 

@@ -65,6 +65,16 @@ test("an ended entry beats a stale running copy despite clock skew", () => {
   assert.equal(mergeStates(actualSwitch, aheadClock).entries[0].end, 100);
 });
 
+test("the newest manual edit can extend a completed activity", () => {
+  const old = emptyState(), edited = emptyState();
+  old.entries = [{ id: "same", name: "Just woke up", categoryId: "personal", start: 1, end: 100, updatedAt: 100 }];
+  edited.entries = [{ id: "same", name: "Morning routine", categoryId: "personal", start: 1, end: 160, updatedAt: 200, editedAt: 200 }];
+  const result = mergeStates(old, edited).entries[0];
+  assert.equal(result.name, "Morning routine");
+  assert.equal(result.end, 160);
+  assert.equal(stableStringify(mergeStates(old, edited)), stableStringify(mergeStates(edited, old)));
+});
+
 test("the newest task state can be checked or unchecked", () => {
   const old = emptyState(), fresh = emptyState();
   old.tasksByDate.today = [{ id: "task", startMin: 10, done: true, updatedAt: 100 }];

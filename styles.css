@@ -215,12 +215,14 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 #why-note-text { font-size: 0.92rem; }
 .why-toggle { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
 
-/* ===== Long-running check modal ===== */
-.check-question { font-size: 1rem; line-height: 1.5; }
-.check-question strong { color: var(--primary-dark); }
-#check-fix label { display: block; font-weight: 600; margin-bottom: 6px; }
-#check-fix .fix-label-row { margin-top: 12px; }
-#check-fix input[type="text"], #check-fix input[type="time"], #check-fix select { width: 100%; }
+/* ===== Activity editor ===== */
+.activity-edit-modal { max-width: 520px; }
+.activity-edit-fields { display: flex; flex-direction: column; gap: 7px; }
+.activity-edit-fields > label, .activity-time-grid label { font-size: .82rem; font-weight: 700; color: #414a61; }
+.activity-edit-fields input, .activity-edit-fields .cat-select { width: 100%; margin-bottom: 7px; }
+.activity-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 3px; }
+.activity-time-grid label { display: flex; flex-direction: column; gap: 7px; }
+.activity-edit-help { margin-top: 8px; padding: 10px 12px; border-radius: 10px; color: var(--muted); background: #f5f7fc; font-size: .8rem; line-height: 1.45; }
 .done-today { color: var(--success); font-weight: 600; font-size: 0.9rem; }
 
 /* ===== Journey heatmap ===== */
@@ -513,6 +515,7 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
 .entry-time { color: var(--muted); font-size: .8rem; white-space: nowrap; }
 .entry-dur { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .entry-row .btn { padding: 4px 8px; font-size: .8rem; }
+.entry-actions { display: flex; justify-content: flex-end; gap: 2px; }
 
 .categories-modal { max-width: 680px; max-height: min(760px, calc(100vh - 32px)); overflow-y: auto; border-radius: 18px; }
 .category-help { margin: -4px 0 16px; color: var(--muted); font-size: .86rem; line-height: 1.5; }
@@ -574,7 +577,8 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
   .entry-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: 9px; }
   .entry-time { grid-column: 2; }
   .entry-dur { grid-column: 3; grid-row: 1; }
-  .entry-row .btn { grid-column: 3; grid-row: 2; }
+  .entry-actions { grid-column: 3; grid-row: 2; }
+  .activity-time-grid { grid-template-columns: 1fr; gap: 4px; }
   .category-row { grid-template-columns: 38px minmax(0, 1fr) auto auto; }
   .category-save-btn { padding-inline: 10px; }
   .category-delete-move-row { flex-direction: column; align-items: stretch; }

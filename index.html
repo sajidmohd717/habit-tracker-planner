@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
   <header class="app-header">
@@ -33,6 +33,7 @@
       <span id="running-bar-category" class="running-category"></span>
     </span>
     <span id="running-bar-elapsed" class="running-elapsed">0:00</span>
+    <button id="running-bar-edit" class="btn switch-btn">Edit</button>
     <button id="running-bar-switch" class="btn switch-btn">⇄ Switch</button>
   </div>
 
@@ -260,41 +261,38 @@
     </div>
   </div>
 
-  <!-- ============ LONG-RUNNING CHECK MODAL ============ -->
-  <div id="check-overlay" class="overlay hidden">
-    <div class="modal">
+  <!-- ============ ACTIVITY EDITOR MODAL ============ -->
+  <div id="activity-edit-overlay" class="overlay hidden">
+    <div class="modal activity-edit-modal">
       <div class="modal-head">
-        <h3>Quick check-in</h3>
+        <div>
+          <span class="section-kicker" id="activity-edit-kind">Activity</span>
+          <h3>Edit activity</h3>
+        </div>
+        <button id="activity-edit-close" class="btn ghost" aria-label="Close activity editor">✕</button>
       </div>
-
-      <div id="check-ask">
-        <p id="check-question" class="check-question"></p>
-        <div class="modal-foot">
-          <button id="check-switched" class="btn ghost">No, I switched a while ago</button>
-          <button id="check-still" class="btn primary">Yes, still going</button>
+      <div class="activity-edit-fields">
+        <label for="activity-edit-name">Activity name</label>
+        <input type="text" id="activity-edit-name" maxlength="80" required>
+        <label for="activity-edit-category">Category</label>
+        <select id="activity-edit-category"></select>
+        <div class="activity-time-grid">
+          <label>Started at<input type="datetime-local" id="activity-edit-start" step="1"></label>
+          <label id="activity-edit-end-row">Ended at<input type="datetime-local" id="activity-edit-end" step="1"></label>
         </div>
       </div>
-
-      <div id="check-fix" class="hidden">
-        <p class="hint">No worries — rough guesses are fine. The point isn't exact timings, it's knowing roughly where your time went so you can spend it wisely. Don't get distracted chasing accuracy.</p>
-        <label for="fix-name">What have you been doing instead?</label>
-        <input type="text" id="fix-name" placeholder="e.g. Out with friends" maxlength="80">
-        <label for="fix-label" class="fix-label-row">Which category fits best?</label>
-        <select id="fix-label"></select>
-        <label for="fix-time" class="fix-label-row">Roughly when did you switch?</label>
-        <input type="time" id="fix-time">
-        <div class="modal-foot">
-          <button id="fix-cancel" class="btn ghost">Back</button>
-          <button id="fix-save" class="btn primary">Fix it</button>
-        </div>
+      <p class="activity-edit-help">Changing a time also moves the shared boundary with the activity beside it, keeping your timeline continuous.</p>
+      <div class="modal-foot">
+        <button id="activity-edit-cancel" class="btn ghost">Cancel</button>
+        <button id="activity-edit-save" class="btn primary">Save changes</button>
       </div>
     </div>
   </div>
 
   <script src="firebase-config.js"></script>
-  <script src="category-model.js?v=5"></script>
-  <script src="state-merge.js?v=5"></script>
-  <script src="app.js?v=5"></script>
-  <script type="module" src="sync.js?v=5"></script>
+  <script src="category-model.js?v=6"></script>
+  <script src="state-merge.js?v=6"></script>
+  <script src="app.js?v=6"></script>
+  <script type="module" src="sync.js?v=6"></script>
 </body>
 </html>

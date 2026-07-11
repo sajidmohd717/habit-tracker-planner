@@ -38,6 +38,7 @@ Plan the day, live the day, then compare intention against reality — all in on
 - **Deleting a category** offers a choice: move its tracked history into another category, or delete the history along with it. Archiving remains the safe option that keeps history intact.
 - **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
+- **Editable timeline** — correct the running activity or any completed activity's name, category, start time, and end time. Adjacent boundaries move with the edit so the timeline stays continuous.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
 - **"Where your time went today"** — a color-coded breakdown with totals and percentages for every category.
 - **Recent activity chips** — restart a past activity with one tap.
