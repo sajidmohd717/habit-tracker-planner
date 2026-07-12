@@ -1631,10 +1631,24 @@ document.getElementById("why-close").addEventListener("click", () => {
   document.getElementById("why-overlay").classList.add("hidden");
 });
 
-document.getElementById("running-bar-switch").addEventListener("click", () => {
-  document.querySelector('[data-tab="planner"]').click();
-  document.getElementById("track-name").focus();
-});
+function openActivitySwitcher() {
+  activateTab(document.getElementById("tab-button-planner"));
+  if (!viewingToday()) setViewDay(todayKey());
+
+  const card = document.querySelector(".tracker-compose-card");
+  const nameInput = document.getElementById("track-name");
+  card.scrollIntoView({ behavior: "smooth", block: "center" });
+  nameInput.focus({ preventScroll: true });
+
+  // Focusing alone is easy to miss when Switch is pressed from the Day tab.
+  // Replay a short visual cue so the destination is obvious every time.
+  card.classList.remove("switch-target");
+  void card.offsetWidth;
+  card.classList.add("switch-target");
+  window.setTimeout(() => card.classList.remove("switch-target"), 1200);
+}
+
+document.getElementById("running-bar-switch").addEventListener("click", openActivitySwitcher);
 document.getElementById("running-bar-edit").addEventListener("click", () => {
   const running = runningEntry();
   if (running) openActivityEditor(running.id);
