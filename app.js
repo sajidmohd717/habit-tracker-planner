@@ -1770,7 +1770,7 @@ document.getElementById("why-close").addEventListener("click", () => {
 
 function openActivitySwitcher() {
   activateTab(document.getElementById("tab-button-planner"));
-  if (!viewingToday()) setViewDay(todayKey());
+  if (timelineView !== "day" || !viewingToday()) setTimelineView("day", todayKey());
 
   const card = document.querySelector(".tracker-compose-card");
   const nameInput = document.getElementById("track-name");
@@ -1814,7 +1814,8 @@ function renderRangeHeading() {
   document.getElementById("today-date").textContent = `${startText} - ${endText}`;
   document.getElementById("day-title-word").textContent = timelineView === "week" ? "Your week" : "Your next days";
   document.getElementById("timeline-title").textContent = timelineView === "week" ? "Week at a glance" : "Three-day timeline";
-  document.getElementById("back-to-today").classList.toggle("hidden", containsToday);
+  const atDefaultRange = timelineView === "week" ? containsToday : viewDayKey === addDays(todayKey(), -1);
+  document.getElementById("back-to-today").classList.toggle("hidden", atDefaultRange);
   document.querySelector(".day-track-card").classList.toggle("hidden", !containsToday);
   document.getElementById("open-task-wizard").classList.add("hidden");
   document.getElementById("balance-kicker").textContent = `${rangeLabel} balance`;
@@ -1859,6 +1860,7 @@ function weekStart(key) {
 function setTimelineView(view, key = viewDayKey) {
   timelineView = view;
   if (view === "week") key = weekStart(key);
+  if (view === "three") key = addDays(todayKey(), -1);
   localStorage.setItem("opb-timeline-view", view);
   for (const button of document.querySelectorAll("[data-timeline-view]")) {
     const active = button.dataset.timelineView === view;
@@ -1876,11 +1878,16 @@ function setViewDay(key) {
   else document.getElementById("timeline").scrollTop = 0;
 }
 
-document.getElementById("day-prev").addEventListener("click", () => setViewDay(addDays(viewDayKey, -timelineDayCount())));
-document.getElementById("day-next").addEventListener("click", () => setViewDay(addDays(viewDayKey, timelineDayCount())));
-document.getElementById("back-to-today").addEventListener("click", () => setViewDay(timelineView === "week" ? weekStart(todayKey()) : todayKey()));
+function timelineNavigationStep() { return timelineView === "week" ? 7 : 1; }
+document.getElementById("day-prev").addEventListener("click", () => setViewDay(addDays(viewDayKey, -timelineNavigationStep())));
+document.getElementById("day-next").addEventListener("click", () => setViewDay(addDays(viewDayKey, timelineNavigationStep())));
+document.getElementById("back-to-today").addEventListener("click", () => setViewDay(
+  timelineView === "week" ? weekStart(todayKey()) : timelineView === "three" ? addDays(todayKey(), -1) : todayKey()
+));
 for (const button of document.querySelectorAll("[data-timeline-view]")) {
-  button.addEventListener("click", () => setTimelineView(button.dataset.timelineView));
+  button.addEventListener("click", () => {
+    if (button.dataset.timelineView !== timelineView) setTimelineView(button.dataset.timelineView);
+  });
 }
 
 setTimelineView(timelineView);
