@@ -42,6 +42,7 @@ Plan the day, live the day, then compare intention against reality — all in on
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
 - **Editable timeline** — correct the running activity or any completed activity's name, category, start time, and end time. Adjacent boundaries move with the edit so the timeline stays continuous.
 - Tracked activities also appear in the shared day calendar and can be opened for editing directly from the **Actual** lane.
+- Switch between **Day, 3 Days, and Week** calendar views. Multi-day views place Plan and Actual inside each date column, and tapping a date opens its detailed day timeline.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
 - **"Where your time went today"** — a color-coded breakdown with totals and percentages for every category.
 - **Recent activity chips** — restart a past activity with one tap.

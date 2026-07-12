@@ -11,8 +11,11 @@ const ensureCategoryState = window.__ensureCategoryState;
 // zoom: 0 = 1-hour rows, 1 = 30-minute rows, 2 = 15-minute rows
 // (a device preference, not synced)
 let timelineZoom = Math.min(2, Math.max(0, Number(localStorage.getItem("opb-zoom")) || 0));
+let timelineView = ["day", "three", "week"].includes(localStorage.getItem("opb-timeline-view"))
+  ? localStorage.getItem("opb-timeline-view") : "day";
 function rowMinutes() { return [60, 30, 15][timelineZoom]; }
 function pxPerHour() { return (60 / rowMinutes()) * PX_PER_ROW; }
+function timelineDayCount() { return timelineView === "week" ? 7 : timelineView === "three" ? 3 : 1; }
 
 let state = load();
 
@@ -469,11 +472,133 @@ function renderNextUp() {
   if (upcoming) strongs[i].textContent = upcoming.name;
 }
 
+function timelineDataForDay(key) {
+  const tasks = (state.tasksByDate[key] || []).slice().sort((a, b) => a.startMin - b.startMin);
+  const dayStart = dayStartMs(key);
+  const dayEnd = dayStartMs(addDays(key, 1));
+  const actual = entriesForDay(key).map(entry => {
+    const start = Math.max(entry.start, dayStart);
+    const end = Math.min(entry.end === null ? Date.now() : entry.end, dayEnd);
+    return {
+      entry, start, end,
+      startMin: start === dayStart ? 0 : localMinuteOfDay(start),
+      endMin: end === dayEnd ? 1440 : localMinuteOfDay(end),
+    };
+  }).filter(item => item.end > item.start).sort((a, b) => a.start - b.start);
+  return { key, tasks, actual };
+}
+
+function renderMultiDayTimeline() {
+  renderNextUp();
+  const timeline = document.getElementById("timeline");
+  const empty = document.getElementById("tasks-empty");
+  const laneHead = document.querySelector(".timeline-lane-head");
+  const count = timelineDayCount();
+  const days = Array.from({ length: count }, (_, index) => timelineDataForDay(addDays(viewDayKey, index)));
+  const hasTimeline = days.some(day => day.tasks.length || day.actual.length);
+
+  empty.textContent = `Nothing planned or tracked in this ${count === 7 ? "week" : "range"}.`;
+  empty.classList.toggle("hidden", hasTimeline);
+  timeline.classList.remove("empty");
+  timeline.classList.add("multi-day");
+  laneHead.classList.remove("hidden");
+  laneHead.classList.add("multi-day-head");
+  laneHead.style.setProperty("--day-count", count);
+  laneHead.innerHTML = "<span></span>";
+  for (const day of days) {
+    const date = new Date(day.key + "T00:00:00");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "multi-day-label" + (day.key === todayKey() ? " today" : "");
+    button.dataset.openDay = day.key;
+    button.innerHTML = `<span>${date.toLocaleDateString(undefined, { weekday: "short" })}</span><strong>${date.getDate()}</strong>`;
+    button.setAttribute("aria-label", `Open ${date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} day view`);
+    laneHead.appendChild(button);
+  }
+  timeline.innerHTML = "";
+
+  let startHour = DAY_START_HOUR, endHour = DAY_END_HOUR;
+  for (const day of days) {
+    for (const task of day.tasks) {
+      startHour = Math.min(startHour, Math.floor(task.startMin / 60));
+      endHour = Math.max(endHour, Math.ceil((task.startMin + task.durMin) / 60));
+    }
+    for (const item of day.actual) {
+      startHour = Math.min(startHour, Math.floor(item.startMin / 60));
+      endHour = Math.max(endHour, Math.ceil(item.endMin / 60));
+    }
+  }
+  startHour = Math.max(0, startHour);
+  endHour = Math.min(24, endHour);
+
+  for (let minutes = startHour * 60; minutes < endHour * 60; minutes += rowMinutes()) {
+    const row = document.createElement("div");
+    row.className = "hour-row" + (minutes % 60 === 0 ? "" : minutes % 30 === 0 ? " half" : " quarter");
+    row.innerHTML = `<div class="hour-label">${fmtTime(minutes)}</div>`;
+    timeline.appendChild(row);
+  }
+
+  const layer = document.createElement("div");
+  layer.className = "multi-blocks-layer";
+  layer.style.height = `${(endHour - startHour) * pxPerHour()}px`;
+  days.forEach((day, index) => {
+    const column = document.createElement("div");
+    column.className = "multi-day-column" + (day.key === todayKey() ? " today" : "");
+    column.style.left = `${(index / count) * 100}%`;
+    column.style.width = `${100 / count}%`;
+
+    for (const task of day.tasks) {
+      const block = document.createElement("div");
+      block.className = "time-block multi-plan-block" + (task.aux ? " aux" : "") + (task.done ? " done" : "");
+      block.style.top = `${((task.startMin - startHour * 60) / 60) * pxPerHour()}px`;
+      block.style.height = `${Math.max(22, (task.durMin / 60) * pxPerHour() - 2)}px`;
+      block.innerHTML = `<span class="block-title"></span><span class="block-time">${fmtTime(task.startMin)}</span><span class="block-actions"><button data-toggle="${task.id}" aria-label="${task.done ? "Mark not done" : "Mark done"}: ${escapeAttr(task.name)}">${task.done ? "â†©" : "âœ“"}</button><button data-remove="${task.id}" aria-label="Remove ${escapeAttr(task.name)}">âœ•</button></span>`;
+      block.querySelector(".block-title").textContent = task.name;
+      column.appendChild(block);
+    }
+
+    for (const item of day.actual) {
+      const { entry } = item;
+      const category = categoryById(entry.categoryId);
+      const block = document.createElement("div");
+      block.className = "time-block actual-block multi-actual-block" + (entry.end === null ? " running" : "") + (item.endMin - item.startMin < 35 ? " compact" : "");
+      block.style.top = `${((item.startMin - startHour * 60) / 60) * pxPerHour()}px`;
+      block.style.height = `${Math.max(22, ((item.endMin - item.startMin) / 60) * pxPerHour() - 2)}px`;
+      applyCategoryColor(block, category);
+      block.innerHTML = `<button type="button" class="block-main" data-edit-timeline-entry="${entry.id}"><span class="block-title"></span><span class="block-time">${fmtClock(item.start)}</span></button>`;
+      block.querySelector(".block-title").textContent = entry.name;
+      block.querySelector(".block-main").setAttribute("aria-label", `Edit tracked activity ${entry.name}`);
+      column.appendChild(block);
+    }
+    layer.appendChild(column);
+  });
+  timeline.appendChild(layer);
+
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  if (days.some(day => day.key === todayKey()) && nowMin >= startHour * 60 && nowMin <= endHour * 60) {
+    const line = document.createElement("div");
+    line.className = "now-line";
+    line.style.top = `${((nowMin - startHour * 60) / 60) * pxPerHour()}px`;
+    line.innerHTML = `<span class="now-label">${fmtTime(nowMin)}</span>`;
+    timeline.appendChild(line);
+  }
+}
+
 function renderTimeline() {
+  if (timelineView !== "day") {
+    renderMultiDayTimeline();
+    return;
+  }
   renderNextUp();
   const timeline = document.getElementById("timeline");
   const empty = document.getElementById("tasks-empty");
   const dayDelta = daysBetween(todayKey(), viewDayKey);
+  timeline.classList.remove("multi-day");
+  const laneHead = document.querySelector(".timeline-lane-head");
+  laneHead.classList.remove("multi-day-head");
+  laneHead.removeAttribute("style");
+  laneHead.innerHTML = "<span></span><strong>Plan</strong><strong>Actual</strong>";
   empty.textContent =
     dayDelta === 0 ? "Your day is still open. Add a plan or start tracking to build the timeline."
     : dayDelta < 0 ? "Nothing was planned or tracked on this day."
@@ -841,6 +966,12 @@ function entriesForDay(key = viewDayKey) {
   const end = dayStartMs(addDays(key, 1));
   return state.entries.filter(e => e.start < end && (e.end === null ? Date.now() : e.end) > start);
 }
+function entriesForCurrentView() {
+  if (timelineView === "day") return entriesForDay();
+  const start = dayStartMs(viewDayKey);
+  const end = dayStartMs(addDays(viewDayKey, timelineDayCount()));
+  return state.entries.filter(entry => entry.start < end && (entry.end === null ? Date.now() : entry.end) > start);
+}
 
 function fmtElapsed(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -918,13 +1049,15 @@ function renderTracker() {
 
   // the viewed day's entries (newest first)
   const list = document.getElementById("entry-list");
-  const shown = entriesForDay().slice().sort((a, b) => b.start - a.start);
+  const shown = entriesForCurrentView().slice().sort((a, b) => b.start - a.start);
   document.getElementById("entries-empty").classList.toggle("hidden", shown.length > 0);
   list.innerHTML = "";
   for (const e of shown) {
     const isRunning = e.end === null;
     const dur = (isRunning ? Date.now() : e.end) - e.start;
     const category = categoryById(e.categoryId);
+    const datePrefix = timelineView === "day" ? "" :
+      new Date(e.start).toLocaleDateString(undefined, { weekday: "short" }) + " · ";
     const row = document.createElement("div");
     row.className = "entry-row";
     row.dataset.entryId = e.id;
@@ -935,7 +1068,7 @@ function renderTracker() {
         <span class="entry-name-line"><span class="entry-name"></span><button class="entry-edit-icon" data-edit-entry="${e.id}" aria-label="Edit activity" title="Edit activity">✎</button></span>
         <span class="entry-category"></span>
       </span>
-      <span class="entry-timing"><span class="entry-time">${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span><span class="entry-dur">${fmtElapsed(dur)}</span></span>
+      <span class="entry-timing"><span class="entry-time">${datePrefix}${fmtClock(e.start)} – ${isRunning ? "now" : fmtClock(e.end)}</span><span class="entry-dur">${fmtElapsed(dur)}</span></span>
       <span class="entry-actions">
         ${isRunning ? "" : `<button class="btn ghost entry-play" data-restart-entry="${e.id}" title="Start this activity again now" aria-label="Start ${escapeAttr(e.name)} again now">▶</button>
         <button class="btn ghost" data-del-entry="${e.id}" title="Delete entry" aria-label="Delete ${escapeAttr(e.name)}">✕</button>`}
@@ -951,7 +1084,7 @@ function renderTracker() {
   const totals = {};
   let grand = 0;
   const dayStart = dayStartMs();
-  const dayEnd = dayStartMs(addDays(viewDayKey, 1));
+  const dayEnd = dayStartMs(addDays(viewDayKey, timelineDayCount()));
   for (const e of shown) {
     // only count the portion that falls within the viewed day
     const dur = Math.max(0, Math.min(e.end === null ? Date.now() : e.end, dayEnd) - Math.max(e.start, dayStart));
@@ -1009,8 +1142,8 @@ function tickTracker() {
   const totals = {};
   let grand = 0;
   const dayStart = dayStartMs();
-  const dayEnd = dayStartMs(addDays(viewDayKey, 1));
-  for (const entry of entriesForDay()) {
+  const dayEnd = dayStartMs(addDays(viewDayKey, timelineDayCount()));
+  for (const entry of entriesForCurrentView()) {
     const duration = Math.max(0, Math.min(entry.end === null ? now : entry.end, dayEnd) - Math.max(entry.start, dayStart));
     totals[entry.categoryId] = (totals[entry.categoryId] || 0) + duration;
     grand += duration;
@@ -1511,6 +1644,10 @@ function setZoom(z) {
 }
 document.getElementById("zoom-in").addEventListener("click", () => setZoom(timelineZoom + 1));
 document.getElementById("zoom-out").addEventListener("click", () => setZoom(timelineZoom - 1));
+document.querySelector(".timeline-lane-head").addEventListener("click", event => {
+  const button = event.target.closest("[data-open-day]");
+  if (button) setTimelineView("day", button.dataset.openDay);
+});
 
 document.getElementById("open-task-wizard").addEventListener("click", () => wizard.open());
 document.getElementById("wizard-close").addEventListener("click", () => wizard.close());
@@ -1664,7 +1801,36 @@ function dayLabel(key) {
   return new Date(key + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
+function renderRangeHeading() {
+  const count = timelineDayCount();
+  const endKey = addDays(viewDayKey, count - 1);
+  const start = new Date(viewDayKey + "T00:00:00");
+  const end = new Date(endKey + "T00:00:00");
+  const containsToday = daysBetween(viewDayKey, todayKey()) >= 0 && daysBetween(todayKey(), endKey) >= 0;
+  const startText = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const endText = end.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const rangeLabel = timelineView === "week" ? "Week" : "Three-day";
+
+  document.getElementById("today-date").textContent = `${startText} - ${endText}`;
+  document.getElementById("day-title-word").textContent = timelineView === "week" ? "Your week" : "Your next days";
+  document.getElementById("timeline-title").textContent = timelineView === "week" ? "Week at a glance" : "Three-day timeline";
+  document.getElementById("back-to-today").classList.toggle("hidden", containsToday);
+  document.querySelector(".day-track-card").classList.toggle("hidden", !containsToday);
+  document.getElementById("open-task-wizard").classList.add("hidden");
+  document.getElementById("balance-kicker").textContent = `${rangeLabel} balance`;
+  document.getElementById("summary-empty").textContent = `Nothing tracked in this ${timelineView === "week" ? "week" : "range"}.`;
+  document.getElementById("day-prev").setAttribute("aria-label", `Previous ${timelineView === "week" ? "week" : "three days"}`);
+  document.getElementById("day-next").setAttribute("aria-label", `Next ${timelineView === "week" ? "week" : "three days"}`);
+}
+
 function renderDayHeading() {
+  if (timelineView !== "day") {
+    renderRangeHeading();
+    return;
+  }
+  document.getElementById("day-prev").setAttribute("aria-label", "Previous day");
+  document.getElementById("day-next").setAttribute("aria-label", "Next day");
+  document.getElementById("open-task-wizard").classList.remove("hidden");
   const delta = daysBetween(todayKey(), viewDayKey);
   const d = new Date(viewDayKey + "T00:00:00");
   const dateText = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
@@ -1685,6 +1851,23 @@ function renderDayHeading() {
       : "Nothing tracked on this day.";
 }
 
+function weekStart(key) {
+  const date = new Date(key + "T00:00:00");
+  return addDays(key, -((date.getDay() + 6) % 7));
+}
+
+function setTimelineView(view, key = viewDayKey) {
+  timelineView = view;
+  if (view === "week") key = weekStart(key);
+  localStorage.setItem("opb-timeline-view", view);
+  for (const button of document.querySelectorAll("[data-timeline-view]")) {
+    const active = button.dataset.timelineView === view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+  setViewDay(key);
+}
+
 function setViewDay(key) {
   viewDayKey = key;
   renderDayHeading();
@@ -1693,11 +1876,14 @@ function setViewDay(key) {
   else document.getElementById("timeline").scrollTop = 0;
 }
 
-document.getElementById("day-prev").addEventListener("click", () => setViewDay(addDays(viewDayKey, -1)));
-document.getElementById("day-next").addEventListener("click", () => setViewDay(addDays(viewDayKey, 1)));
-document.getElementById("back-to-today").addEventListener("click", () => setViewDay(todayKey()));
+document.getElementById("day-prev").addEventListener("click", () => setViewDay(addDays(viewDayKey, -timelineDayCount())));
+document.getElementById("day-next").addEventListener("click", () => setViewDay(addDays(viewDayKey, timelineDayCount())));
+document.getElementById("back-to-today").addEventListener("click", () => setViewDay(timelineView === "week" ? weekStart(todayKey()) : todayKey()));
+for (const button of document.querySelectorAll("[data-timeline-view]")) {
+  button.addEventListener("click", () => setTimelineView(button.dataset.timelineView));
+}
 
-renderDayHeading();
+setTimelineView(timelineView);
 
 /* ---------- settings ---------- */
 

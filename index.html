@@ -6,7 +6,7 @@
   <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
   <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <header class="app-header">
@@ -106,10 +106,17 @@
     <section class="card timeline-card">
       <div class="timeline-card-head">
         <div><span class="section-kicker">Plan vs actual</span><h2 id="timeline-title">Today's timeline</h2></div>
-        <div class="zoom-controls" aria-label="Timeline zoom">
+        <div class="timeline-tools">
+          <div class="view-controls" role="group" aria-label="Timeline range">
+            <button class="view-btn active" data-timeline-view="day" aria-pressed="true">Day</button>
+            <button class="view-btn" data-timeline-view="three" aria-pressed="false">3 Days</button>
+            <button class="view-btn" data-timeline-view="week" aria-pressed="false">Week</button>
+          </div>
+          <div class="zoom-controls" aria-label="Timeline zoom">
           <button id="zoom-out" class="btn ghost zoom-btn" title="Show less detail" aria-label="Zoom timeline out">−</button>
           <span id="zoom-label" class="zoom-label" aria-live="polite">1 hour</span>
           <button id="zoom-in" class="btn ghost zoom-btn" title="Show more detail" aria-label="Zoom timeline in">+</button>
+          </div>
         </div>
       </div>
       <div class="timeline-lane-head" aria-hidden="true"><span></span><strong>Plan</strong><strong>Actual</strong></div>
@@ -319,7 +326,7 @@
   <script src="firebase-config.js"></script>
   <script src="category-model.js?v=10"></script>
   <script src="state-merge.js?v=10"></script>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
   <script type="module" src="sync.js?v=10"></script>
 </body>
 </html>
