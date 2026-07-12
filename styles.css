@@ -393,6 +393,7 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .multi-day-column .block-time { font-size: .62rem; }
 .multi-plan-block { left: 3px; right: 60%; z-index: 1; border: 1px dashed #7f8fd8; border-left: 3px solid var(--primary-dark); background: rgba(227,233,255,.72); }
 .multi-actual-block { left: 42%; right: 3px; z-index: 2; }
+.multi-day-column .block-play { width: 18px; height: 18px; font-size: .5rem; }
 .multi-day-column .block-actions { display: none; }
 .timeline.multi-day .now-line { z-index: 5; }
 .time-block {
