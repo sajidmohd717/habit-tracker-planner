@@ -567,7 +567,7 @@ function renderMultiDayTimeline() {
       block.style.height = `${Math.max(22, ((item.endMin - item.startMin) / 60) * pxPerHour() - 2)}px`;
       applyCategoryColor(block, category);
       block.innerHTML = `<button type="button" class="block-main" data-edit-timeline-entry="${entry.id}"><span class="block-title"></span><span class="block-time">${fmtClock(item.start)}</span></button>`
-        + (entry.end === null ? "" : `<button type="button" class="block-play" data-restart-entry="${entry.id}" title="Start this activity again now" aria-label="Start ${escapeAttr(entry.name)} again now">â–¶</button>`);
+        + (entry.end === null ? "" : `<button type="button" class="block-play" data-restart-entry="${entry.id}" title="Start this activity again now" aria-label="Start ${escapeAttr(entry.name)} again now">▶</button>`);
       block.querySelector(".block-title").textContent = entry.name;
       block.querySelector(".block-main").setAttribute("aria-label", `Edit tracked activity ${entry.name}`);
       block.title = `${entry.name} · ${fmtClock(item.start)} - ${entry.end === null ? "now" : fmtClock(item.end)}`;
