@@ -318,6 +318,14 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .compose-heading h2 { margin: 2px 0 0; font-size: 1.05rem; }
 
 .timeline-card { padding: 18px 8px 12px 0; overflow-x: auto; }
+@media (min-width: 1100px) {
+  .timeline-card.range-expanded {
+    width: min(1480px, calc(100vw - 64px));
+    max-width: none;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+}
 .timeline-card-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 0 12px 14px 20px; }
 .timeline-card-head h2 { margin: 3px 0 0; font-size: 1.25rem; }
 .timeline-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }

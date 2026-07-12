@@ -553,6 +553,7 @@ function renderMultiDayTimeline() {
       block.style.top = `${((task.startMin - startHour * 60) / 60) * pxPerHour()}px`;
       block.style.height = `${Math.max(22, (task.durMin / 60) * pxPerHour() - 2)}px`;
       block.innerHTML = `<span class="block-title"></span><span class="block-time">${fmtTime(task.startMin)}</span><span class="block-actions"><button data-toggle="${task.id}" aria-label="${task.done ? "Mark not done" : "Mark done"}: ${escapeAttr(task.name)}">${task.done ? "â†©" : "âœ“"}</button><button data-remove="${task.id}" aria-label="Remove ${escapeAttr(task.name)}">âœ•</button></span>`;
+      block.title = `${task.name} · ${fmtTime(task.startMin)} - ${fmtTime(task.startMin + task.durMin)}`;
       block.querySelector(".block-title").textContent = task.name;
       column.appendChild(block);
     }
@@ -568,6 +569,7 @@ function renderMultiDayTimeline() {
       block.innerHTML = `<button type="button" class="block-main" data-edit-timeline-entry="${entry.id}"><span class="block-title"></span><span class="block-time">${fmtClock(item.start)}</span></button>`;
       block.querySelector(".block-title").textContent = entry.name;
       block.querySelector(".block-main").setAttribute("aria-label", `Edit tracked activity ${entry.name}`);
+      block.title = `${entry.name} · ${fmtClock(item.start)} - ${entry.end === null ? "now" : fmtClock(item.end)}`;
       column.appendChild(block);
     }
     layer.appendChild(column);
@@ -1862,6 +1864,9 @@ function setTimelineView(view, key = viewDayKey) {
   if (view === "week") key = weekStart(key);
   if (view === "three") key = addDays(todayKey(), -1);
   localStorage.setItem("opb-timeline-view", view);
+  const timelineCard = document.querySelector(".timeline-card");
+  timelineCard.classList.toggle("range-expanded", view !== "day");
+  timelineCard.dataset.rangeView = view;
   for (const button of document.querySelectorAll("[data-timeline-view]")) {
     const active = button.dataset.timelineView === view;
     button.classList.toggle("active", active);
