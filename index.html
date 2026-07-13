@@ -6,7 +6,7 @@
   <meta name="description" content="Habitloom helps you build habits, plan your day, and see where your time goes.">
   <meta name="theme-color" content="#4f6df5">
   <title>Habitloom — Habit Tracker &amp; Planner</title>
-  <link rel="stylesheet" href="styles.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
   <header class="app-header">
@@ -21,8 +21,9 @@
       <button id="settings-btn" class="btn auth-btn icon-btn" title="Settings" aria-label="Open settings">⚙</button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Habitloom sections">
-      <button id="tab-button-habits" class="tab-btn active" data-tab="habits" role="tab" aria-selected="true" aria-controls="tab-habits" tabindex="0">Habits</button>
+      <button id="tab-button-track" class="tab-btn active" data-tab="track" role="tab" aria-selected="true" aria-controls="tab-track" tabindex="0">Track</button>
       <button id="tab-button-planner" class="tab-btn" data-tab="planner" role="tab" aria-selected="false" aria-controls="tab-planner" tabindex="-1">Day</button>
+      <button id="tab-button-habits" class="tab-btn" data-tab="habits" role="tab" aria-selected="false" aria-controls="tab-habits" tabindex="-1">Habits</button>
     </nav>
   </header>
 
@@ -38,8 +39,33 @@
     <button id="running-bar-switch" class="btn switch-btn">⇄ Switch</button>
   </div>
 
+  <!-- ============ TRACK TAB ============ -->
+  <main id="tab-track" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-track">
+    <section class="card tracker-compose-card track-hub-card">
+      <div class="compose-heading">
+        <div><span class="section-kicker">Track now</span><h2>What are you doing?</h2></div>
+      </div>
+      <div class="recent-label">Quick switch</div>
+      <div id="recent-chips" class="chips"></div>
+      <div class="recent-label">Pick a category</div>
+      <div id="track-category-grid" class="track-category-grid"></div>
+      <div id="track-activity-panel" class="track-activity-panel hidden">
+        <div class="track-panel-head">
+          <button id="track-panel-back" class="btn ghost track-back-btn">← Categories</button>
+          <h3 class="track-panel-title"><span class="label-dot"></span><span id="track-panel-name"></span></h3>
+        </div>
+        <div id="track-activity-list" class="track-activity-list"></div>
+        <p id="track-activity-empty" class="empty-msg hidden">Nothing tracked in this category yet — name the first activity below.</p>
+        <form id="track-new-form" class="track-new-form">
+          <input type="text" id="track-new-name" placeholder="New activity in this category" maxlength="80" required>
+          <button type="submit" class="btn primary tracker-start-btn">▶ Start</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
   <!-- ============ HABITS TAB ============ -->
-  <main id="tab-habits" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-habits">
+  <main id="tab-habits" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-habits">
     <div id="stack-nudge" class="nudge hidden">
       🎉 All your habits have a 7+ day streak. You're consistent — ready to stack a new habit?
     </div>
@@ -88,19 +114,6 @@
         </div>
       </div>
       <p id="next-up" class="next-up hidden"></p>
-    </section>
-
-    <section class="card tracker-compose-card day-track-card">
-      <div class="compose-heading">
-        <div><span class="section-kicker">Track now</span><h2>What are you doing?</h2></div>
-      </div>
-      <form id="track-form" class="track-form">
-        <input type="text" id="track-name" placeholder="e.g. Focused work" maxlength="80" required>
-        <select id="track-category" aria-label="Activity category"></select>
-        <button type="submit" class="btn primary tracker-start-btn">Start tracking</button>
-      </form>
-      <div class="recent-label">Quick switch</div>
-      <div id="recent-chips" class="chips"></div>
     </section>
 
     <section class="card timeline-card">
@@ -326,7 +339,7 @@
   <script src="firebase-config.js"></script>
   <script src="category-model.js?v=10"></script>
   <script src="state-merge.js?v=10"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
   <script type="module" src="sync.js?v=10"></script>
 </body>
 </html>

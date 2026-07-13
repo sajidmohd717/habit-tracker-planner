@@ -890,6 +890,84 @@ function applyCategoryColor(element, category) {
   element.style.setProperty("--category-color", category.color);
 }
 
+/* ---------- Track tab: two-tap start (category → past activity) ---------- */
+let selectedTrackCategoryId = null;
+
+// Unique activity names previously tracked in a category, newest first.
+function categoryActivityNames(categoryId, cap = 12) {
+  const seen = new Set();
+  const names = [];
+  const ordered = [...state.entries].sort((a, b) => b.start - a.start);
+  for (const entry of ordered) {
+    if (entry.categoryId !== categoryId) continue;
+    const key = entry.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(entry.name);
+    if (names.length >= cap) break;
+  }
+  return names;
+}
+
+function renderTrackHub() {
+  const grid = document.getElementById("track-category-grid");
+  const panel = document.getElementById("track-activity-panel");
+  if (!grid || !panel) return;
+  const categories = activeCategories();
+  if (selectedTrackCategoryId && !categories.some(category => category.id === selectedTrackCategoryId)) {
+    selectedTrackCategoryId = null; // selected category was archived or deleted
+  }
+  const selected = selectedTrackCategoryId ? categoryById(selectedTrackCategoryId) : null;
+  grid.classList.toggle("hidden", !!selected);
+  panel.classList.toggle("hidden", !selected);
+
+  if (!selected) {
+    grid.innerHTML = "";
+    for (const category of categories) {
+      const count = categoryActivityNames(category.id, 99).length;
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "track-cat-tile";
+      tile.dataset.trackCategory = category.id;
+      applyCategoryColor(tile, category);
+      tile.innerHTML = `<span class="label-dot"></span><span class="track-cat-name"></span><span class="track-cat-count"></span>`;
+      tile.querySelector(".track-cat-name").textContent = category.name;
+      tile.querySelector(".track-cat-count").textContent =
+        count === 0 ? "nothing yet" : count === 1 ? "1 activity" : `${count} activities`;
+      grid.appendChild(tile);
+    }
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "track-cat-tile track-cat-new";
+    add.dataset.newCategory = "1";
+    add.textContent = "+ New category";
+    grid.appendChild(add);
+    return;
+  }
+
+  applyCategoryColor(panel, selected);
+  document.getElementById("track-panel-name").textContent = selected.name;
+  const running = runningEntry();
+  const list = document.getElementById("track-activity-list");
+  list.innerHTML = "";
+  const names = categoryActivityNames(selected.id);
+  for (const name of names) {
+    const isRunning = running && running.categoryId === selected.id
+      && running.name.toLowerCase() === name.toLowerCase();
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip track-activity-btn";
+    btn.dataset.restartName = name;
+    btn.dataset.restartCategory = selected.id;
+    btn.disabled = !!isRunning;
+    applyCategoryColor(btn, selected);
+    btn.innerHTML = `<span class="label-dot"></span>`;
+    btn.append((isRunning ? "● " : "▶ ") + name);
+    list.appendChild(btn);
+  }
+  document.getElementById("track-activity-empty").classList.toggle("hidden", names.length > 0);
+}
+
 // entry: { id, name, categoryId, start (ms), end (ms|null) }
 // Always the NEWEST running entry — duplicates from sync races must not
 // steer the tracking bar or activity editor.
@@ -993,7 +1071,7 @@ function localMinuteOfDay(ms) {
 
 function renderTracker() {
   const running = runningEntry();
-  refreshCategorySelect(document.getElementById("track-category"));
+  renderTrackHub();
 
   // persistent bar (visible on every tab)
   const bar = document.getElementById("running-bar");
@@ -1664,16 +1742,35 @@ document.getElementById("need-before").addEventListener("change", e =>
 document.getElementById("need-after").addEventListener("change", e =>
   document.getElementById("after-fields").classList.toggle("hidden", !e.target.checked));
 
-enhanceCategorySelect(document.getElementById("track-category"));
 enhanceCategorySelect(document.getElementById("activity-edit-category"));
 enhanceCategorySelect(document.getElementById("category-delete-target"));
 
-document.getElementById("track-form").addEventListener("submit", e => {
+document.getElementById("track-category-grid").addEventListener("click", e => {
+  if (e.target.closest("[data-new-category]")) {
+    renderCategoryManager();
+    document.getElementById("categories-overlay").classList.remove("hidden");
+    return;
+  }
+  const tile = e.target.closest("[data-track-category]");
+  if (!tile) return;
+  selectedTrackCategoryId = tile.dataset.trackCategory;
+  renderTrackHub();
+});
+document.getElementById("track-panel-back").addEventListener("click", () => {
+  selectedTrackCategoryId = null;
+  renderTrackHub();
+});
+document.getElementById("track-activity-list").addEventListener("click", e => {
+  const btn = e.target.closest("[data-restart-name]");
+  if (btn) startActivity(btn.dataset.restartName, btn.dataset.restartCategory);
+});
+document.getElementById("track-new-form").addEventListener("submit", e => {
   e.preventDefault();
-  const name = document.getElementById("track-name").value.trim();
-  if (!name) return;
-  startActivity(name, document.getElementById("track-category").value);
-  document.getElementById("track-name").value = "";
+  const input = document.getElementById("track-new-name");
+  const name = input.value.trim();
+  if (!name || !selectedTrackCategoryId) return;
+  startActivity(name, selectedTrackCategoryId);
+  input.value = "";
 });
 
 document.getElementById("recent-chips").addEventListener("click", e => {
@@ -1772,15 +1869,12 @@ document.getElementById("why-close").addEventListener("click", () => {
 });
 
 function openActivitySwitcher() {
-  activateTab(document.getElementById("tab-button-planner"));
-  if (timelineView !== "day" || !viewingToday()) setTimelineView("day", todayKey());
+  activateTab(document.getElementById("tab-button-track"));
 
-  const card = document.querySelector(".tracker-compose-card");
-  const nameInput = document.getElementById("track-name");
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-  nameInput.focus({ preventScroll: true });
+  const card = document.querySelector(".track-hub-card");
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // Focusing alone is easy to miss when Switch is pressed from the Day tab.
+  // Switching tabs alone is easy to miss when Switch is pressed elsewhere.
   // Replay a short visual cue so the destination is obvious every time.
   card.classList.remove("switch-target");
   void card.offsetWidth;
@@ -1819,7 +1913,6 @@ function renderRangeHeading() {
   document.getElementById("timeline-title").textContent = timelineView === "week" ? "Week at a glance" : "Three-day timeline";
   const atDefaultRange = timelineView === "week" ? containsToday : viewDayKey === addDays(todayKey(), -1);
   document.getElementById("back-to-today").classList.toggle("hidden", atDefaultRange);
-  document.querySelector(".day-track-card").classList.toggle("hidden", !containsToday);
   document.getElementById("open-task-wizard").classList.add("hidden");
   document.getElementById("balance-kicker").textContent = `${rangeLabel} balance`;
   document.getElementById("summary-empty").textContent = `Nothing tracked in this ${timelineView === "week" ? "week" : "range"}.`;
@@ -1843,8 +1936,6 @@ function renderDayHeading() {
   document.getElementById("day-title-word").textContent =
     delta === 0 ? "Your day" : delta < 0 ? "Looking back" : "Planning ahead";
   document.getElementById("back-to-today").classList.toggle("hidden", delta === 0);
-  // Tracking always happens in the present — hide the start form on other days.
-  document.querySelector(".day-track-card").classList.toggle("hidden", delta !== 0);
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   document.getElementById("timeline-title").textContent =
     delta === 0 ? "Today's timeline" : `${cap(dayLabel(viewDayKey))} — timeline`;

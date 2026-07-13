@@ -565,11 +565,41 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .switch-btn:hover { background: rgba(255,255,255,.3); }
 .running-edit-btn { width: 34px; padding-inline: 0; font-size: 1rem; }
 
-.track-form { display: grid; grid-template-columns: minmax(0, 1fr) 190px auto; gap: 10px; }
-.track-form input[type="text"] { width: 100%; }
 .tracker-start-btn { padding-inline: 22px; border-radius: 10px; box-shadow: 0 8px 18px rgba(79,109,245,.22); }
 select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: .95rem; font-family: inherit; background: #fafbff; }
-.track-form input, .track-form select, .track-form .cat-select-btn { min-height: 46px; border-radius: 10px; background: #f8f9fd; }
+
+/* ===== Track tab hub: category grid → activity picker ===== */
+.track-category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.track-cat-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--category-color, #778196) 30%, #e7eaf2);
+  background: color-mix(in srgb, var(--category-color, #778196) 6%, #fff);
+  border-radius: 14px; padding: 14px; cursor: pointer; text-align: left;
+  font-family: inherit; transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.track-cat-tile:hover { border-color: var(--category-color, var(--primary)); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(27,37,67,.08); }
+.track-cat-tile .label-dot { width: 10px; height: 10px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color, #778196) 16%, transparent); }
+.track-cat-name { font-weight: 700; font-size: .95rem; color: var(--text); }
+.track-cat-count { color: var(--muted); font-size: .75rem; }
+.track-cat-new { justify-content: center; align-items: center; border-style: dashed; border-color: var(--border); background: transparent; color: var(--muted); font-weight: 600; font-size: .9rem; }
+.track-cat-new:hover { color: var(--primary); border-color: var(--primary); }
+.track-activity-panel {
+  margin-top: 12px; border-radius: 14px; padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--category-color, #778196) 24%, #e7eaf2);
+  border-top: 3px solid var(--category-color, #e7eaf2);
+  background: color-mix(in srgb, var(--category-color, #778196) 4%, #fff);
+}
+.track-panel-head { display: flex; align-items: center; gap: 10px; }
+.track-back-btn { flex-shrink: 0; }
+.track-panel-title { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0; min-width: 0; }
+.track-panel-title .label-dot { width: 10px; height: 10px; flex-shrink: 0; }
+.track-activity-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.track-activity-list:empty { margin-top: 0; }
+.track-activity-btn { padding: 9px 16px; font-size: .9rem; }
+.track-activity-btn:disabled { opacity: .6; cursor: default; transform: none; }
+.track-activity-panel .empty-msg { padding: 14px 0 4px; }
+.track-new-form { display: flex; gap: 8px; margin-top: 14px; }
+.track-new-form input { flex: 1; min-height: 46px; border-radius: 10px; background: #f8f9fd; }
 
 /* custom category dropdown */
 .cat-select { position: relative; width: 100%; }
@@ -737,9 +767,9 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
   .time-block { padding: 4px 6px; font-size: .74rem; }
   .time-block .block-time { display: none; }
   .category-manage-btn { align-self: flex-start; }
-  .track-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-  .track-form input[type="text"] { grid-column: 1 / -1; }
-  .track-form input, .track-form select, .track-form .cat-select-btn { min-height: 42px; }
+  .track-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .track-cat-tile { padding: 12px; }
+  .track-new-form input { min-height: 42px; }
   .insights-head { align-items: flex-start; }
   .entry-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: 9px; }
   .entry-timing { grid-column: 2; align-items: flex-start; flex-direction: row; gap: 8px; }
