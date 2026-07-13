@@ -1047,14 +1047,17 @@ function startActivity(name, categoryId) {
 }
 
 // Restart a past activity from its timeline block or history row: same name
-// and category, starting now. Viewing another day jumps back to today so the
-// freshly started activity is visible.
+// and category, starting now. The view only jumps when today isn't visible in
+// the current range (e.g. browsing last week) — otherwise it stays put.
 function restartEntry(id) {
   const entry = state.entries.find(e => e.id === id);
   if (!entry) return;
   startActivity(entry.name, entry.categoryId);
-  if (!viewingToday()) {
-    setViewDay(todayKey());
+  const endKey = addDays(viewDayKey, timelineDayCount() - 1);
+  const todayVisible = daysBetween(viewDayKey, todayKey()) >= 0 && daysBetween(todayKey(), endKey) >= 0;
+  if (!todayVisible) {
+    setViewDay(timelineView === "week" ? weekStart(todayKey())
+      : timelineView === "three" ? addDays(todayKey(), -1) : todayKey());
     showToast(`▶ Started "${entry.name}" — jumped back to today.`);
   }
 }
