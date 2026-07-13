@@ -488,6 +488,46 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
   border-radius: 4px;
 }
 
+/* ideal sleep window (10 PM – 6 AM): soft shading + bedtime marker */
+.sleep-band {
+  position: absolute;
+  left: 62px;
+  right: 0;
+  background: linear-gradient(180deg, rgba(91,91,214,.07), rgba(91,91,214,.04));
+  pointer-events: none;
+}
+.sleep-band-label {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #7a7fd6;
+  opacity: .85;
+}
+.bedtime-line {
+  position: absolute;
+  left: 62px;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed #8b8fe0;
+  z-index: 4;
+  pointer-events: none;
+}
+.bedtime-label {
+  position: absolute;
+  left: 6px;
+  top: -17px;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #6d72cf;
+  background: var(--card);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
 /* ===== Modal / Wizard ===== */
 .overlay {
   position: fixed;
@@ -764,6 +804,7 @@ select { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px
   .timeline.multi-day { min-width: calc(48px + var(--day-count) * 82px); }
   .multi-blocks-layer { left: 48px; }
   .now-line { left: 48px; }
+  .sleep-band, .bedtime-line { left: 48px; }
   .time-block { padding: 4px 6px; font-size: .74rem; }
   .time-block .block-time { display: none; }
   .category-manage-btn { align-self: flex-start; }

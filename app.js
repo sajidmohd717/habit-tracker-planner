@@ -463,6 +463,12 @@ function renderNextUp() {
     const until = upcoming.startMin - nowMin;
     parts.push(`Next: <strong></strong> in <strong>${fmtDuration(until)}</strong> (${fmtTime(upcoming.startMin)})`);
   }
+  // gentle bedtime pressure from ~90 minutes out; past 10 PM, say it plainly
+  if (nowMin >= BEDTIME_MIN) {
+    parts.push(`🌙 Past your <strong>10 PM</strong> bedtime — tomorrow starts tonight`);
+  } else if (nowMin >= BEDTIME_MIN - 90) {
+    parts.push(`🌙 Bedtime in <strong>${fmtDuration(BEDTIME_MIN - nowMin)}</strong> — start winding down`);
+  }
   el.classList.toggle("hidden", parts.length === 0);
   if (!parts.length) return;
   el.innerHTML = "⏳ " + parts.join(" · ");
@@ -470,6 +476,38 @@ function renderNextUp() {
   let i = 0;
   if (current) strongs[i++].textContent = current.name;
   if (upcoming) strongs[i].textContent = upcoming.name;
+}
+
+// Ideal sleep window (10 PM – 6 AM) shaded on the timeline so the evening
+// visibly "ends" at bedtime. Purely visual — day boundaries stay at midnight.
+const BEDTIME_MIN = 22 * 60, WAKE_MIN = 6 * 60;
+
+function appendSleepWindow(timeline, startHour, endHour) {
+  const rangeStart = startHour * 60, rangeEnd = endHour * 60;
+  const addBand = (fromMin, toMin, labelText) => {
+    const from = Math.max(fromMin, rangeStart), to = Math.min(toMin, rangeEnd);
+    if (to <= from) return;
+    const band = document.createElement("div");
+    band.className = "sleep-band";
+    band.style.top = `${((from - rangeStart) / 60) * pxPerHour()}px`;
+    band.style.height = `${((to - from) / 60) * pxPerHour()}px`;
+    if (labelText && from === fromMin) {
+      const label = document.createElement("span");
+      label.className = "sleep-band-label";
+      label.textContent = labelText;
+      band.appendChild(label);
+    }
+    timeline.appendChild(band);
+  };
+  addBand(0, WAKE_MIN);            // last night's tail: midnight → 6 AM
+  addBand(BEDTIME_MIN, 1440, "😴 wind down");
+  if (BEDTIME_MIN >= rangeStart && BEDTIME_MIN <= rangeEnd) {
+    const line = document.createElement("div");
+    line.className = "bedtime-line";
+    line.style.top = `${((BEDTIME_MIN - rangeStart) / 60) * pxPerHour()}px`;
+    line.innerHTML = `<span class="bedtime-label">🌙 bedtime</span>`;
+    timeline.appendChild(line);
+  }
 }
 
 function timelineDataForDay(key) {
@@ -537,6 +575,7 @@ function renderMultiDayTimeline() {
     row.innerHTML = `<div class="hour-label">${fmtTime(minutes)}</div>`;
     timeline.appendChild(row);
   }
+  appendSleepWindow(timeline, startHour, endHour);
 
   const layer = document.createElement("div");
   layer.className = "multi-blocks-layer";
@@ -648,6 +687,7 @@ function renderTimeline() {
     row.innerHTML = `<div class="hour-label">${fmtTime(m)}</div>`;
     timeline.appendChild(row);
   }
+  appendSleepWindow(timeline, startHour, endHour);
 
   // overlapping events share the width side-by-side (Google Calendar style):
   // cluster mutually-overlapping blocks, then greedily assign columns
