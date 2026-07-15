@@ -240,6 +240,35 @@ input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .activity-edit-fields { display: flex; flex-direction: column; gap: 7px; }
 .activity-edit-fields > label, .activity-time-grid label { font-size: .82rem; font-weight: 700; color: #414a61; }
 .activity-edit-fields input, .activity-edit-fields .cat-select { width: 100%; margin-bottom: 7px; }
+.activity-name-combobox { position: relative; width: 100%; }
+.activity-name-combobox input { margin-bottom: 0; padding-right: 38px; }
+.activity-name-combobox:focus-within input { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,109,245,.12); outline: none; }
+.activity-name-chevron {
+  position: absolute; z-index: 1; top: 15px; right: 15px; width: 8px; height: 8px;
+  border-right: 1.5px solid #8a93a8; border-bottom: 1.5px solid #8a93a8;
+  transform: rotate(45deg); pointer-events: none; transition: transform .16s, top .16s;
+}
+.activity-name-combobox.open .activity-name-chevron { top: 18px; transform: rotate(225deg); }
+.activity-name-hint { margin: -1px 0 5px; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.activity-name-suggestions {
+  position: absolute; z-index: 75; top: calc(100% + 6px); left: 0; right: 0;
+  max-height: 250px; overflow-y: auto; padding: 6px;
+  border: 1px solid #dfe4ef; border-radius: 12px; background: #fff;
+  box-shadow: 0 8px 18px rgba(20,30,60,.1), 0 20px 45px rgba(20,30,60,.14);
+}
+.activity-suggestion-heading { padding: 5px 8px 6px; color: #8a93a8; font-size: .68rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.activity-suggestion {
+  display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 10px;
+  width: 100%; padding: 9px 10px; border: 0; border-radius: 9px;
+  color: var(--text); background: transparent; font: inherit; text-align: left; cursor: pointer;
+}
+.activity-suggestion:hover, .activity-suggestion.active, .activity-suggestion:focus-visible {
+  background: color-mix(in srgb, var(--category-color, #778196) 9%, #fff); outline: none;
+}
+.activity-suggestion-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--category-color, #778196); box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color, #778196) 15%, transparent); }
+.activity-suggestion-name { min-width: 0; overflow: hidden; font-size: .9rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.activity-suggestion-category { max-width: 125px; overflow: hidden; color: var(--category-color, var(--muted)); font-size: .72rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.activity-suggestion-empty { padding: 13px 11px; color: var(--muted); font-size: .82rem; line-height: 1.4; }
 .activity-time-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 3px; }
 .activity-time-field { min-width: 0; padding: 0; border: 0; }
 .activity-time-field legend { margin-bottom: 7px; color: #414a61; font-size: .82rem; font-weight: 700; }

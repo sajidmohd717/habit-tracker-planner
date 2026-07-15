@@ -1523,6 +1523,112 @@ setInterval(tickTracker, 1000);
 let editingEntryId = null;
 let editingOriginalStart = null;
 let editingOriginalEnd = null;
+let activitySuggestionResults = [];
+let activitySuggestionActive = -1;
+
+function pastActivitySuggestions(query = "", excludeId = null, cap = 8) {
+  const needle = query.trim().toLowerCase();
+  const seen = new Set();
+  const startsWith = [];
+  const contains = [];
+  for (let index = state.entries.length - 1; index >= 0; index--) {
+    const entry = state.entries[index];
+    if (entry.id === excludeId || !entry.name?.trim()) continue;
+    const normalizedName = entry.name.trim().toLowerCase();
+    if (needle && !normalizedName.includes(needle)) continue;
+    const key = `${normalizedName}|${entry.categoryId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const suggestion = {
+      name: entry.name.trim(),
+      categoryId: entry.categoryId,
+      category: categoryById(entry.categoryId),
+    };
+    (needle && !normalizedName.startsWith(needle) ? contains : startsWith).push(suggestion);
+  }
+  return [...startsWith, ...contains].slice(0, cap);
+}
+
+function closeActivityNameSuggestions() {
+  const wrap = document.getElementById("activity-name-combobox");
+  const input = document.getElementById("activity-edit-name");
+  document.getElementById("activity-name-suggestions").classList.add("hidden");
+  wrap.classList.remove("open");
+  input.setAttribute("aria-expanded", "false");
+  input.removeAttribute("aria-activedescendant");
+  activitySuggestionResults = [];
+  activitySuggestionActive = -1;
+}
+
+function setActiveActivitySuggestion(index) {
+  const menu = document.getElementById("activity-name-suggestions");
+  const options = [...menu.querySelectorAll(".activity-suggestion")];
+  if (!options.length) return;
+  activitySuggestionActive = (index + options.length) % options.length;
+  for (let optionIndex = 0; optionIndex < options.length; optionIndex++) {
+    const active = optionIndex === activitySuggestionActive;
+    options[optionIndex].classList.toggle("active", active);
+    options[optionIndex].setAttribute("aria-selected", String(active));
+  }
+  const activeOption = options[activitySuggestionActive];
+  document.getElementById("activity-edit-name").setAttribute("aria-activedescendant", activeOption.id);
+  activeOption.scrollIntoView({ block: "nearest" });
+}
+
+function chooseActivitySuggestion(index) {
+  const suggestion = activitySuggestionResults[index];
+  if (!suggestion) return;
+  const input = document.getElementById("activity-edit-name");
+  input.value = suggestion.name;
+  refreshCategorySelect(document.getElementById("activity-edit-category"), suggestion.categoryId);
+  closeActivityNameSuggestions();
+  input.focus();
+}
+
+function renderActivityNameSuggestions(query = "") {
+  const menu = document.getElementById("activity-name-suggestions");
+  const wrap = document.getElementById("activity-name-combobox");
+  const input = document.getElementById("activity-edit-name");
+  activitySuggestionResults = pastActivitySuggestions(query, editingEntryId);
+  activitySuggestionActive = -1;
+  menu.innerHTML = "";
+
+  if (!activitySuggestionResults.length && !query.trim()) {
+    closeActivityNameSuggestions();
+    return;
+  }
+
+  if (activitySuggestionResults.length) {
+    const heading = document.createElement("div");
+    heading.className = "activity-suggestion-heading";
+    heading.textContent = query.trim() ? "Matching activities" : "Recent activities";
+    menu.appendChild(heading);
+    activitySuggestionResults.forEach((suggestion, index) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.id = `activity-suggestion-${index}`;
+      option.className = "activity-suggestion";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      option.style.setProperty("--category-color", suggestion.category.color);
+      option.innerHTML = `<span class="activity-suggestion-dot"></span><span class="activity-suggestion-name"></span><span class="activity-suggestion-category"></span>`;
+      option.querySelector(".activity-suggestion-name").textContent = suggestion.name;
+      option.querySelector(".activity-suggestion-category").textContent = suggestion.category.name;
+      option.addEventListener("mouseenter", () => setActiveActivitySuggestion(index));
+      option.addEventListener("click", () => chooseActivitySuggestion(index));
+      menu.appendChild(option);
+    });
+  } else {
+    const empty = document.createElement("div");
+    empty.className = "activity-suggestion-empty";
+    empty.textContent = "No matching past activity. Keep typing to use this as a new name.";
+    menu.appendChild(empty);
+  }
+
+  menu.classList.remove("hidden");
+  wrap.classList.add("open");
+  input.setAttribute("aria-expanded", "true");
+}
 
 function dateInputValue(ms) {
   const date = new Date(ms);
@@ -1544,6 +1650,7 @@ function readEditedDateTime(prefix, originalMs) {
 }
 
 function closeActivityEditor() {
+  closeActivityNameSuggestions();
   editingEntryId = null;
   editingOriginalStart = null;
   editingOriginalEnd = null;
@@ -1567,7 +1674,14 @@ function openActivityEditor(id) {
   document.getElementById("activity-edit-end-date").value = running ? "" : dateInputValue(entry.end);
   document.getElementById("activity-edit-end-time").value = running ? "" : timeInputValue(entry.end);
   document.getElementById("activity-edit-overlay").classList.remove("hidden");
-  document.getElementById("activity-edit-name").focus();
+  // Open after the triggering click finishes bubbling; otherwise the global
+  // outside-click handler would immediately close the new suggestion menu.
+  setTimeout(() => {
+    if (editingEntryId !== id) return;
+    const input = document.getElementById("activity-edit-name");
+    input.focus();
+    renderActivityNameSuggestions("");
+  }, 0);
 }
 
 function saveActivityEdit() {
@@ -2149,6 +2263,38 @@ document.getElementById("entry-list").addEventListener("click", e => {
   if (edit) openActivityEditor(edit.dataset.editEntry);
   if (del) deleteEntry(del.dataset.delEntry);
   if (restart) restartEntry(restart.dataset.restartEntry);
+});
+
+const activityNameInput = document.getElementById("activity-edit-name");
+const activityNameMenu = document.getElementById("activity-name-suggestions");
+const activityNameWrap = document.getElementById("activity-name-combobox");
+activityNameInput.addEventListener("focus", () => renderActivityNameSuggestions(""));
+activityNameInput.addEventListener("click", () => {
+  if (activityNameMenu.classList.contains("hidden")) renderActivityNameSuggestions("");
+});
+activityNameInput.addEventListener("input", () => renderActivityNameSuggestions(activityNameInput.value));
+activityNameInput.addEventListener("keydown", event => {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    if (activityNameMenu.classList.contains("hidden")) renderActivityNameSuggestions(activityNameInput.value);
+    if (!activitySuggestionResults.length) return;
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    setActiveActivitySuggestion(activitySuggestionActive + direction);
+  } else if (event.key === "Enter" && activitySuggestionActive >= 0) {
+    event.preventDefault();
+    chooseActivitySuggestion(activitySuggestionActive);
+  } else if (event.key === "Escape" && !activityNameMenu.classList.contains("hidden")) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeActivityNameSuggestions();
+  }
+});
+activityNameInput.addEventListener("blur", () => setTimeout(() => {
+  if (!activityNameWrap.contains(document.activeElement)) closeActivityNameSuggestions();
+}, 0));
+activityNameMenu.addEventListener("pointerdown", event => event.preventDefault());
+document.addEventListener("click", event => {
+  if (!activityNameWrap.contains(event.target)) closeActivityNameSuggestions();
 });
 
 document.getElementById("activity-edit-close").addEventListener("click", closeActivityEditor);

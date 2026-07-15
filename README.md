@@ -40,7 +40,7 @@ Plan the day, live the day, then compare intention against reality — all in on
 - **Deleting a category** offers a choice: move its tracked history into another category, or delete the history along with it. Archiving remains the safe option that keeps history intact.
 - **Continuous tracking, one timer at a time** — starting or restarting an activity is the switch: it ends the current activity at that exact moment and immediately starts the next one.
 - There is intentionally no standalone stop button. If you are between tasks, start a break, downtime, travel, sleep, or another honest description so the day remains complete.
-- **Editable timeline** — correct the running activity or any completed activity's name, category, start time, and end time. Adjacent boundaries move with the edit so the timeline stays continuous.
+- **Editable timeline** — correct the running activity or any completed activity's name, category, start time, and end time. The editor can autocomplete from past activities and restore their category in one click. Adjacent boundaries move with the edit so the timeline stays continuous.
 - Tracked activities also appear in the shared day calendar and can be opened for editing directly from the **Actual** lane.
 - Switch between **Day, 3 Days, and Week** calendar views. Multi-day views place Plan and Actual inside each date column, and tapping a date opens its detailed day timeline.
 - A **persistent tracking bar** stays visible on every tab with a live timer and a shortcut to switch activities.
