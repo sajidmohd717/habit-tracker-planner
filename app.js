@@ -591,7 +591,7 @@ function renderMultiDayTimeline() {
       block.className = "time-block multi-plan-block" + (task.aux ? " aux" : "") + (task.done ? " done" : "");
       block.style.top = `${((task.startMin - startHour * 60) / 60) * pxPerHour()}px`;
       block.style.height = `${Math.max(22, (task.durMin / 60) * pxPerHour() - 2)}px`;
-      block.innerHTML = `<span class="block-title"></span><span class="block-time">${fmtTime(task.startMin)}</span><span class="block-actions"><button data-toggle="${task.id}" aria-label="${task.done ? "Mark not done" : "Mark done"}: ${escapeAttr(task.name)}">${task.done ? "â†©" : "âœ“"}</button><button data-remove="${task.id}" aria-label="Remove ${escapeAttr(task.name)}">âœ•</button></span>`;
+      block.innerHTML = `<span class="block-title"></span><span class="block-time">${fmtTime(task.startMin)}</span><span class="block-actions"><button data-toggle="${task.id}" aria-label="${task.done ? "Mark not done" : "Mark done"}: ${escapeAttr(task.name)}">${task.done ? "↩" : "✓"}</button><button data-remove="${task.id}" aria-label="Remove ${escapeAttr(task.name)}">✕</button></span>`;
       block.title = `${task.name} · ${fmtTime(task.startMin)} - ${fmtTime(task.startMin + task.durMin)}`;
       block.querySelector(".block-title").textContent = task.name;
       column.appendChild(block);
@@ -933,6 +933,14 @@ function applyCategoryColor(element, category) {
 /* ---------- Track tab: two-tap start (category → past activity) ---------- */
 let selectedTrackCategoryId = null;
 
+// Replay a short slide-in when the hub switches between its two steps.
+// Only called from the click handlers — routine re-renders must not flash.
+function animateHubStep(element) {
+  element.classList.remove("hub-step-in");
+  void element.offsetWidth;
+  element.classList.add("hub-step-in");
+}
+
 // Unique activity names previously tracked in a category, newest first.
 function categoryActivityNames(categoryId, cap = 12) {
   const seen = new Set();
@@ -1044,6 +1052,7 @@ function startActivity(name, categoryId) {
   }, now));
   save();
   renderTracker();
+  showToast(`▶ Tracking "${name}"`);
 }
 
 // Restart a past activity from its timeline block or history row: same name
@@ -1097,6 +1106,17 @@ function entriesForCurrentView() {
   return state.entries.filter(entry => entry.start < end && (entry.end === null ? Date.now() : entry.end) > start);
 }
 
+// total time tracked today (clipped to today's bounds), regardless of the viewed day
+function todayTrackedMs(now = Date.now()) {
+  const start = dayStartMs(todayKey());
+  const end = dayStartMs(addDays(todayKey(), 1));
+  let total = 0;
+  for (const e of state.entries) {
+    total += Math.max(0, Math.min(e.end === null ? now : e.end, end) - Math.max(e.start, start));
+  }
+  return total;
+}
+
 function fmtElapsed(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
@@ -1115,6 +1135,7 @@ function localMinuteOfDay(ms) {
 function renderTracker() {
   const running = runningEntry();
   renderTrackHub();
+  document.getElementById("track-today-total").textContent = fmtElapsed(todayTrackedMs());
 
   // persistent bar (visible on every tab)
   const bar = document.getElementById("running-bar");
@@ -1254,6 +1275,7 @@ function tickTracker() {
   if (!running) return;
   const now = Date.now();
   document.getElementById("running-bar-elapsed").textContent = fmtElapsed(now - running.start);
+  document.getElementById("track-today-total").textContent = fmtElapsed(todayTrackedMs(now));
 
   for (const row of document.querySelectorAll(".entry-row[data-entry-id]")) {
     if (row.dataset.entryId === running.id) {
@@ -1691,6 +1713,237 @@ const wizard = {
 };
 
 /* ============================================================
+   GUIDES (static guide book — content lives in guides.js)
+   ============================================================ */
+
+let openGuideId = null;   // chapter currently open, or null for the index
+let guideAppId = null;    // app picked in the "name the app" section
+
+// Every plantable habit in a guide, keyed for data-plant attributes.
+function guidePlantables(guide) {
+  const map = {};
+  (guide.sections || []).forEach((section, sectionIndex) => {
+    if (section.type === "habits") {
+      section.habits.forEach((habit, habitIndex) => { map[`${sectionIndex}:${habitIndex}`] = habit; });
+    }
+    if (section.type === "apps") {
+      for (const app of section.apps) map[`app:${app.id}`] = app.habit;
+    }
+  });
+  return map;
+}
+
+function habitPlanted(name) {
+  return state.habits.some(h => h.name.toLowerCase() === name.toLowerCase());
+}
+
+function plantGuideHabit(habit) {
+  if (habitPlanted(habit.name)) return;
+  if (habitCreatedToday()) {
+    showToast("🌱 You've already planted today's habit — come back tomorrow. One per day is the 1%.");
+    return;
+  }
+  addHabit(habit.name, habit.note);
+  showToast(`🌱 Planted "${habit.name}" — it's waiting in Habits.`);
+  renderGuides();
+}
+
+function guidePlantRow(habit, key) {
+  const row = document.createElement("div");
+  row.className = "guide-plant-row";
+  if (habitPlanted(habit.name)) {
+    row.innerHTML = `<span class="guide-planted">✓ Planted — it's in your Habits</span>`;
+  } else {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn primary guide-plant-btn";
+    btn.dataset.plant = key;
+    btn.textContent = "🌱 Plant this habit";
+    row.appendChild(btn);
+  }
+  return row;
+}
+
+function renderGuideSection(section, sectionIndex) {
+  const wrap = document.createElement("section");
+  wrap.className = "guide-section";
+  const heading = document.createElement("h3");
+  heading.textContent = section.title;
+  wrap.appendChild(heading);
+
+  if (section.intro) {
+    const intro = document.createElement("p");
+    intro.className = "guide-p";
+    intro.textContent = section.intro;
+    wrap.appendChild(intro);
+  }
+
+  if (section.type === "prose") {
+    for (const text of section.paragraphs) {
+      const p = document.createElement("p");
+      p.className = "guide-p";
+      p.innerHTML = text; // trusted static copy from guides.js
+      wrap.appendChild(p);
+    }
+  }
+
+  if (section.type === "apps") {
+    const picker = document.createElement("div");
+    picker.className = "guide-app-picker";
+    for (const app of section.apps) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip guide-app-chip" + (app.id === guideAppId ? " selected" : "");
+      chip.dataset.pickApp = app.id;
+      chip.setAttribute("aria-pressed", String(app.id === guideAppId));
+      chip.textContent = `${app.icon} ${app.name}`;
+      picker.appendChild(chip);
+    }
+    wrap.appendChild(picker);
+    const app = section.apps.find(item => item.id === guideAppId);
+    if (app) {
+      const detail = document.createElement("div");
+      detail.className = "guide-app-detail hub-step-in";
+      const hook = document.createElement("p");
+      hook.className = "guide-p guide-hook";
+      hook.textContent = app.hook;
+      const list = document.createElement("ul");
+      list.className = "guide-list";
+      for (const tactic of app.tactics) {
+        const li = document.createElement("li");
+        li.textContent = tactic;
+        list.appendChild(li);
+      }
+      const habitName = document.createElement("p");
+      habitName.className = "guide-habit-name";
+      habitName.textContent = app.habit.name;
+      detail.append(hook, list, habitName, guidePlantRow(app.habit, `app:${app.id}`));
+      wrap.appendChild(detail);
+    }
+  }
+
+  if (section.type === "habits") {
+    const grid = document.createElement("div");
+    grid.className = "guide-habit-grid";
+    section.habits.forEach((habit, habitIndex) => {
+      const card = document.createElement("div");
+      card.className = "guide-habit-card";
+      const name = document.createElement("p");
+      name.className = "guide-habit-name";
+      name.textContent = habit.name;
+      const blurb = document.createElement("p");
+      blurb.className = "guide-p guide-habit-blurb";
+      blurb.textContent = habit.blurb;
+      card.append(name, blurb, guidePlantRow(habit, `${sectionIndex}:${habitIndex}`));
+      grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+  }
+
+  if (section.type === "list") {
+    const list = document.createElement("ul");
+    list.className = "guide-list";
+    for (const item of section.items) {
+      const li = document.createElement("li");
+      li.textContent = item;
+      list.appendChild(li);
+    }
+    wrap.appendChild(list);
+  }
+
+  if (section.type === "refs") {
+    const list = document.createElement("ul");
+    list.className = "guide-refs";
+    for (const ref of section.refs) {
+      const li = document.createElement("li");
+      li.innerHTML = `<strong></strong> — <span class="guide-ref-author"></span>: <span class="guide-ref-note"></span>`;
+      li.querySelector("strong").textContent = ref.title;
+      li.querySelector(".guide-ref-author").textContent = ref.author;
+      li.querySelector(".guide-ref-note").textContent = ref.note;
+      list.appendChild(li);
+    }
+    wrap.appendChild(list);
+  }
+
+  return wrap;
+}
+
+function renderGuides() {
+  const root = document.getElementById("guides-root");
+  const guides = window.__GUIDES || [];
+  root.innerHTML = "";
+  const guide = openGuideId ? guides.find(g => g.id === openGuideId) : null;
+
+  if (!guide) {
+    const head = document.createElement("section");
+    head.className = "card guide-intro-card";
+    head.innerHTML = `<span class="section-kicker">Guide book</span><h2>Small changes, compounding returns</h2>
+      <p class="guide-p">Short, research-backed reads for when you don't know which habit to start with. Each one ends with ready-to-plant habits — tap one and it lands in your Habits tab, "why" note included.</p>`;
+    root.appendChild(head);
+    const grid = document.createElement("div");
+    grid.className = "guide-grid";
+    for (const g of guides) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "guide-card" + (g.ready ? "" : " soon");
+      card.disabled = !g.ready;
+      if (g.ready) card.dataset.openGuide = g.id;
+      card.innerHTML = `<span class="guide-icon">${g.icon}</span><span class="guide-card-copy"><strong></strong><span class="guide-tagline"></span></span><span class="guide-card-meta">${g.ready ? `${g.minutes} min read` : "Coming soon"}</span>`;
+      card.querySelector("strong").textContent = g.title;
+      card.querySelector(".guide-tagline").textContent = g.tagline;
+      grid.appendChild(card);
+    }
+    root.appendChild(grid);
+    return;
+  }
+
+  const article = document.createElement("article");
+  article.className = "card guide-article";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "btn ghost guide-back";
+  back.dataset.guideBack = "";
+  back.textContent = "← All guides";
+  const kicker = document.createElement("span");
+  kicker.className = "section-kicker";
+  kicker.textContent = `Guide · ${guide.minutes} min read`;
+  const title = document.createElement("h2");
+  title.className = "guide-title";
+  title.textContent = `${guide.icon} ${guide.title}`;
+  article.append(back, kicker, title);
+  guide.sections.forEach((section, index) => article.appendChild(renderGuideSection(section, index)));
+  root.appendChild(article);
+}
+
+document.getElementById("guides-root").addEventListener("click", event => {
+  const open = event.target.closest("[data-open-guide]");
+  if (open) {
+    openGuideId = open.dataset.openGuide;
+    guideAppId = null;
+    renderGuides();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  if (event.target.closest("[data-guide-back]")) {
+    openGuideId = null;
+    renderGuides();
+    return;
+  }
+  const pick = event.target.closest("[data-pick-app]");
+  if (pick) {
+    guideAppId = pick.dataset.pickApp === guideAppId ? null : pick.dataset.pickApp;
+    renderGuides();
+    return;
+  }
+  const plant = event.target.closest("[data-plant]");
+  if (plant && openGuideId) {
+    const guide = (window.__GUIDES || []).find(g => g.id === openGuideId);
+    const habit = guide && guidePlantables(guide)[plant.dataset.plant];
+    if (habit) plantGuideHabit(habit);
+  }
+});
+
+/* ============================================================
    WIRING
    ============================================================ */
 
@@ -1709,6 +1962,7 @@ function activateTab(btn, moveFocus = false) {
     renderTimeline(); // fresh now-line on open
     centerTimelineOnNow();
   }
+  if (btn.dataset.tab === "guides") renderGuides();
 }
 for (const btn of tabButtons) {
   btn.addEventListener("click", () => activateTab(btn));
@@ -1722,6 +1976,9 @@ for (const btn of tabButtons) {
     activateTab(next, true);
   });
 }
+
+document.getElementById("habits-empty-guide").addEventListener("click", () =>
+  activateTab(document.getElementById("tab-button-guides")));
 
 document.getElementById("habit-form").addEventListener("submit", e => {
   e.preventDefault();
@@ -1798,10 +2055,16 @@ document.getElementById("track-category-grid").addEventListener("click", e => {
   if (!tile) return;
   selectedTrackCategoryId = tile.dataset.trackCategory;
   renderTrackHub();
+  animateHubStep(document.getElementById("track-activity-panel"));
+  // an empty category means the next step is typing a name — put the cursor there
+  if (!categoryActivityNames(selectedTrackCategoryId, 1).length) {
+    document.getElementById("track-new-name").focus();
+  }
 });
 document.getElementById("track-panel-back").addEventListener("click", () => {
   selectedTrackCategoryId = null;
   renderTrackHub();
+  animateHubStep(document.getElementById("track-category-grid"));
 });
 document.getElementById("track-activity-list").addEventListener("click", e => {
   const btn = e.target.closest("[data-restart-name]");

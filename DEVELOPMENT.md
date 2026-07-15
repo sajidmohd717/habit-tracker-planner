@@ -30,6 +30,7 @@ Habitloom is a dependency-free static web app deployed through GitHub Pages.
 | `index.html` | App structure, tabs, forms, and dialogs |
 | `styles.css` | All visual and responsive styling |
 | `app.js` | Local state, product behavior, rendering, and event wiring |
+| `guides.js` | Static guide-book chapters (data only; app.js renders and wires them) |
 | `category-model.js` | Default categories and backward-compatible category migration |
 | `state-merge.js` | Pure deterministic merging for tabs and devices |
 | `sync.js` | Google authentication and transactional Firestore sync |
